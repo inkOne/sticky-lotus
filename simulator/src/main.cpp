@@ -1,6 +1,8 @@
 #include "sticky_lotus/GameState.h"
+#include "sticky_lotus/ui/AppRenderer.h"
+#include "sticky_lotus/ui/Geometry.h"
+#include "sticky_lotus_raylib/RaylibCanvas.h"
 #include "sticky_lotus_sim/RaylibInput.h"
-#include "sticky_lotus_sim/RaylibRenderer.h"
 
 #include <raylib.h>
 
@@ -8,13 +10,17 @@
 
 namespace {
 
+using sticky_lotus::ui::AppRenderer;
+using sticky_lotus::ui::Point;
+using sticky_lotus::ui::Rect;
+
+using sticky_lotus_raylib::RaylibCanvas;
 
 using sticky_lotus_sim::GestureEvent;
-using sticky_lotus_sim::TouchGesture;
 using sticky_lotus_sim::HardwareButtonState;
 using sticky_lotus_sim::PointerState;
 using sticky_lotus_sim::RaylibInput;
-using sticky_lotus_sim::RaylibRenderer;
+using sticky_lotus_sim::TouchGesture;
 
 /**
  * Ermittelt anhand einer Bildschirmposition,
@@ -27,16 +33,16 @@ std::size_t getPlayerIndex(
 {
     if (playerCount == 2) {
         return position.x <
-            RaylibRenderer::screenWidth / 2.0F
+            AppRenderer::screenWidth / 2.0F
             ? 0
             : 1;
     }
 
     constexpr float cellWidth =
-        RaylibRenderer::screenWidth / 2.0F;
+        AppRenderer::screenWidth / 2.0F;
 
     constexpr float cellHeight =
-        RaylibRenderer::screenHeight / 2.0F;
+        AppRenderer::screenHeight / 2.0F;
 
     const int column =
         position.x < cellWidth ? 0 : 1;
@@ -61,7 +67,7 @@ int getLifeChange(
 )
 {
     constexpr float cellWidth =
-        RaylibRenderer::screenWidth / 2.0F;
+        AppRenderer::screenWidth / 2.0F;
 
     const int column =
         static_cast<int>(
@@ -79,16 +85,28 @@ int getLifeChange(
 }
 
 /**
- * Prüft, ob ein Punkt in einem Rechteck liegt.
+ * Wandelt einen Raylib-Punkt in den plattformunabhängigen
+ * Point-Typ der UI-Engine um.
+ */
+Point toPoint(const Vector2 position)
+{
+    return {
+        position.x,
+        position.y
+    };
+}
+
+/**
+ * Prüft, ob ein Punkt in einem plattformunabhängigen
+ * UI-Rechteck liegt.
  */
 bool containsPoint(
-    const Rectangle& area,
-    const Vector2 point
+    const Rect& area,
+    const Vector2 position
 )
 {
-    return CheckCollisionPointRec(
-        point,
-        area
+    return area.contains(
+        toPoint(position)
     );
 }
 
@@ -97,7 +115,7 @@ bool containsPoint(
  */
 void processSettingsTap(
     GameState& game,
-    const RaylibRenderer& renderer,
+    const AppRenderer& renderer,
     const Vector2 position,
     bool& settingsOpen
 )
@@ -162,7 +180,6 @@ void processSettingsTap(
             LOG_INFO,
             "Custom multiplayer editor pressed"
         );
-
         return;
     }
 
@@ -198,7 +215,6 @@ void processSettingsTap(
             LOG_INFO,
             "Custom two-player editor pressed"
         );
-
         return;
     }
 
@@ -224,7 +240,7 @@ void processSettingsTap(
  */
 void processGameTap(
     GameState& game,
-    const RaylibRenderer& renderer,
+    const AppRenderer& renderer,
     const Vector2 position,
     bool& settingsOpen
 )
@@ -257,8 +273,7 @@ void processGameTap(
  * Verarbeitet eine horizontale Wischgeste.
  *
  * Im Moment wird nur protokolliert, welcher Spieler
- * gewischt hat. Im nächsten Schritt öffnen wir damit
- * die Commander-Damage-Ansicht.
+ * gewischt hat.
  */
 void processSwipe(
     const GameState& game,
@@ -320,9 +335,6 @@ void processHardwareButtons(
 
     // Vorläufig verändern die beiden äußeren Tasten
     // die Lebenspunkte von Spieler 1.
-    //
-    // Später können sie beispielsweise für Navigation,
-    // Auswahl oder Undo verwendet werden.
     if (buttons.leftPressed) {
         game.changeLife(0, -1);
     }
@@ -336,32 +348,25 @@ void processHardwareButtons(
 
 int main()
 {
-    InitWindow(
-        RaylibRenderer::screenWidth,
-        RaylibRenderer::screenHeight,
+    RaylibCanvas canvas(
+        AppRenderer::screenWidth,
+        AppRenderer::screenHeight,
         "Sticky Lotus Simulator"
     );
 
-    SetTargetFPS(30);
-
     GameState game;
-    RaylibRenderer renderer;
+    AppRenderer renderer(canvas);
     RaylibInput input;
 
     bool settingsOpen = false;
 
-    while (!WindowShouldClose()) {
-        // Aktuellen Maus- beziehungsweise Touchzustand lesen.
+    while (!canvas.shouldClose()) {
         const PointerState pointer =
             input.readPointer();
 
-        // Aus Mausbewegung und Tastenzuständen eine
-        // abgeschlossene Geste erzeugen.
         const GestureEvent gestureEvent =
             input.updateGesture(pointer);
 
-        // Die drei Sticky-Tasten werden im Simulator
-        // durch Tastaturtasten nachgebildet.
         const HardwareButtonState buttons =
             input.readHardwareButtons();
 
@@ -371,7 +376,6 @@ int main()
             settingsOpen
         );
 
-        // Tap oder Swipe werden erst beim Loslassen ausgewertet.
         switch (gestureEvent.gesture) {
             case TouchGesture::Tap:
                 if (settingsOpen) {
@@ -389,7 +393,6 @@ int main()
                         settingsOpen
                     );
                 }
-
                 break;
 
             case TouchGesture::SwipeLeft:
@@ -400,7 +403,6 @@ int main()
                         gestureEvent
                     );
                 }
-
                 break;
 
             case TouchGesture::SwipeUp:
@@ -409,7 +411,6 @@ int main()
                 break;
         }
 
-        // Escape schließt nur das Settings-Overlay.
         if (
             settingsOpen &&
             IsKeyPressed(KEY_ESCAPE)
@@ -417,7 +418,7 @@ int main()
             settingsOpen = false;
         }
 
-        BeginDrawing();
+        canvas.beginFrame();
 
         if (settingsOpen) {
             renderer.drawSettings(game);
@@ -425,10 +426,9 @@ int main()
             renderer.drawGame(game);
         }
 
-        EndDrawing();
+        canvas.endFrame();
+        canvas.flush();
     }
-
-    CloseWindow();
 
     return 0;
 }

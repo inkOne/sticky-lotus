@@ -17,6 +17,7 @@
           ninja
           pkg-config
           raylib
+          glfw
           git
         ];
 
