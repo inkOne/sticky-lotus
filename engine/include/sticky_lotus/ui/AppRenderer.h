@@ -4,6 +4,8 @@
 #include "sticky_lotus/ui/Canvas.h"
 #include "sticky_lotus/ui/Geometry.h"
 #include <cstddef>
+#include "sticky_lotus/commander/CommanderDamageDraft.h"
+#include "sticky_lotus/ui/TableLayout.h"
 
 namespace sticky_lotus::ui {
 
@@ -32,9 +34,9 @@ public:
     void drawSettings(const GameState& game);
 
     void drawCommanderDamage(
-        const GameState& game,
-        std::size_t sourcePlayer
-    );
+       const GameState& game,
+       const commander::CommanderDamageDraft& draft
+   );
 
     [[nodiscard]]
     Rect getMenuButtonRectangle() const;
@@ -78,36 +80,20 @@ public:
     [[nodiscard]]
     Rect getDoneButtonRectangle() const;
 
-    /**
- * Liefert den Minus-Bereich eines Commander-Damage-Ziels.
- */
     [[nodiscard]]
     Rect getCommanderDamageMinusRectangle(
-        std::size_t sourcePlayer,
-        std::size_t targetPlayer,
+        std::size_t attackingPlayer,
         std::size_t playerCount
     ) const;
 
-    /**
-     * Liefert den Plus-Bereich eines Commander-Damage-Ziels.
-     */
     [[nodiscard]]
     Rect getCommanderDamagePlusRectangle(
-        std::size_t sourcePlayer,
-        std::size_t targetPlayer,
+        std::size_t attackingPlayer,
         std::size_t playerCount
     ) const;
 
 private:
-    static constexpr int columns = 2;
-    static constexpr int rows = 2;
-
-    static constexpr int cellWidth =
-        screenWidth / columns;
-
-    static constexpr int cellHeight =
-        screenHeight / rows;
-
+    TableLayout tableLayout_;
     Canvas& canvas_;
 
     void drawPlayers(const GameState& game);

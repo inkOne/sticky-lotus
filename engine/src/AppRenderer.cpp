@@ -26,78 +26,37 @@ void AppRenderer::drawGame(const GameState& game)
         static_cast<float>(screenHeight)
     });
 }
-
-void AppRenderer::drawPlayers(const GameState& game)
+void AppRenderer::drawPlayers(
+        const GameState& game
+    )
 {
     const std::size_t playerCount =
         game.getPlayerCount();
 
-    if (playerCount == 2) {
-        for (
-            std::size_t index = 0;
-            index < playerCount;
-            ++index
-        ) {
-            const Rect playerArea = {
-                static_cast<float>(
-                    index * screenWidth / 2
-                ),
-                0.0F,
-                screenWidth / 2.0F,
-                static_cast<float>(screenHeight)
-            };
-
-            const bool upsideDown =
-                index == 0;
-
-            drawPlayer(
-                game.getPlayer(index),
-                playerArea,
-                upsideDown
-            );
-        }
-
-        return;
-    }
-
     for (
-        std::size_t index = 0;
-        index < playerCount;
-        ++index
+        std::size_t playerIndex = 0;
+        playerIndex < playerCount;
+        ++playerIndex
     ) {
-        const int column =
-            static_cast<int>(index % columns);
-
-        const int row =
-            static_cast<int>(index / columns);
-
-        const Rect playerArea = {
-            static_cast<float>(
-                column * cellWidth
-            ),
-            static_cast<float>(
-                row * cellHeight
-            ),
-            static_cast<float>(cellWidth),
-            static_cast<float>(cellHeight)
-        };
-
-        const bool upsideDown =
-            index == 0 || index == 1;
-
         drawPlayer(
-            game.getPlayer(index),
-            playerArea,
-            upsideDown
+            game.getPlayer(playerIndex),
+            tableLayout_.playerArea(
+                playerIndex,
+                playerCount
+            ),
+            tableLayout_.isUpsideDown(
+                playerIndex,
+                playerCount
+            )
         );
     }
 }
 
-void AppRenderer::drawPlayer(
-    const Player& player,
-    const Rect& playerArea,
-    const bool upsideDown
-)
+    void AppRenderer::drawPlayer(
+        const Player& player,
+        const Rect& playerArea,
+        const bool upsideDown
+    )
 {
     canvas_.fillRect(
         playerArea,
@@ -110,42 +69,41 @@ void AppRenderer::drawPlayer(
         Ink::Black
     );
 
-    // Spielernamen bleiben bewusst ausgeblendet.
-    //
-    // canvas_.drawText(
-    //     player.name,
-    //     {...},
-    //     24,
-    //     Ink::Black
-    // );
+    std::size_t playerIndex = 0;
 
-    constexpr float sideButtonWidth = 75.0F;
-    constexpr float sideMargin = 15.0F;
+    if (playerArea.x >= screenWidth / 2.0F) {
+        playerIndex += 1;
+    }
 
-    const Rect minusArea = {
-        playerArea.x + sideMargin,
-        playerArea.y,
-        sideButtonWidth,
-        playerArea.height
-    };
+    if (
+        playerArea.y >= screenHeight / 2.0F &&
+        playerArea.height < screenHeight
+    ) {
+        playerIndex += 2;
+    }
 
-    const Rect plusArea = {
-        playerArea.x +
-            playerArea.width -
-            sideButtonWidth -
-            sideMargin,
-        playerArea.y,
-        sideButtonWidth,
-        playerArea.height
-    };
+    const std::size_t playerCount =
+        playerArea.height >= screenHeight
+            ? 2
+            : 4;
 
-    const Rect lifeArea = {
-        playerArea.x + sideButtonWidth,
-        playerArea.y,
-        playerArea.width -
-            sideButtonWidth * 2.0F,
-        playerArea.height
-    };
+    const Rect minusArea =
+        tableLayout_.minusArea(
+            playerIndex,
+            playerCount
+        );
+
+    const Rect plusArea =
+        tableLayout_.plusArea(
+            playerIndex,
+            playerCount
+        );
+
+    const Rect lifeArea =
+        tableLayout_.counterArea(
+            playerIndex,
+            playerCount
+        );
 
     const float rotation =
         upsideDown ? 180.0F : 0.0F;
@@ -591,53 +549,30 @@ Rect AppRenderer::getDoneButtonRectangle() const
 
     return visibleRow;
 }
-
     Rect AppRenderer::getCommanderDamageMinusRectangle(
-        const std::size_t sourcePlayer,
-        const std::size_t targetPlayer,
+        const std::size_t attackingPlayer,
         const std::size_t playerCount
     ) const
 {
-    const std::size_t rowIndex =
-        getCommanderDamageRowIndex(
-            sourcePlayer,
-            targetPlayer,
-            playerCount
-        );
-
-    return {
-        395.0F,
-        245.0F +
-            static_cast<float>(rowIndex) * 65.0F,
-        55.0F,
-        55.0F
-    };
+    return tableLayout_.minusArea(
+        attackingPlayer,
+        playerCount
+    );
 }
 
     Rect AppRenderer::getCommanderDamagePlusRectangle(
-        const std::size_t sourcePlayer,
-        const std::size_t targetPlayer,
+        const std::size_t attackingPlayer,
         const std::size_t playerCount
     ) const
 {
-    const std::size_t rowIndex =
-        getCommanderDamageRowIndex(
-            sourcePlayer,
-            targetPlayer,
-            playerCount
-        );
-
-    return {
-        580.0F,
-        245.0F +
-            static_cast<float>(rowIndex) * 65.0F,
-        55.0F,
-        55.0F
-    };
+    return tableLayout_.plusArea(
+        attackingPlayer,
+        playerCount
+    );
 }
 void AppRenderer::drawCommanderDamage(
     const GameState& game,
-    const std::size_t sourcePlayer
+    const commander::CommanderDamageDraft& draft
 )
 {
     canvas_.clear(Ink::White);
@@ -649,171 +584,180 @@ void AppRenderer::drawCommanderDamage(
         static_cast<float>(screenHeight)
     };
 
-    canvas_.drawRect(
-        fullScreen,
-        3.0F,
-        Ink::Black
-    );
+    if (!draft.isActive()) {
+        canvas_.drawText(
+            "No Commander Damage session",
+            fullScreen,
+            24,
+            Ink::Black
+        );
 
-    canvas_.drawText(
-        "Commander Damage",
-        {
-            40.0F,
-            20.0F,
-            720.0F,
-            50.0F
-        },
-        32,
-        Ink::Black,
-        TextAlignment::Center
-    );
+        canvas_.invalidate(fullScreen);
+        return;
+    }
 
-    canvas_.drawText(
-        "Damage source",
-        {
-            40.0F,
-            75.0F,
-            720.0F,
-            30.0F
-        },
-        18,
-        Ink::DarkGray,
-        TextAlignment::Center
-    );
+    const std::size_t receivingPlayer =
+        draft.receivingPlayer();
 
-    canvas_.drawText(
-        std::to_string(sourcePlayer + 1),
-        {
-            300.0F,
-            105.0F,
-            200.0F,
-            100.0F
-        },
-        68,
-        Ink::Black,
-        TextAlignment::Center
-    );
+    const std::size_t playerCount =
+        draft.playerCount();
 
     for (
-        std::size_t targetPlayer = 0;
-        targetPlayer < game.getPlayerCount();
-        ++targetPlayer
+        std::size_t playerIndex = 0;
+        playerIndex < playerCount;
+        ++playerIndex
     ) {
-        if (targetPlayer == sourcePlayer) {
+        const Rect playerArea =
+            tableLayout_.playerArea(
+                playerIndex,
+                playerCount
+            );
+
+        const bool upsideDown =
+            tableLayout_.isUpsideDown(
+                receivingPlayer,
+                playerCount
+            );
+
+        const float rotation =
+            upsideDown ? 180.0F : 0.0F;
+
+        canvas_.fillRect(
+            playerArea,
+            Ink::White
+        );
+
+        canvas_.drawRect(
+            playerArea,
+            2.0F,
+            Ink::Black
+        );
+
+        /*
+         * Das Feld des Empfängers enthält nur Informationen
+         * zur aktuellen Bearbeitung.
+         */
+        if (playerIndex == receivingPlayer) {
+            canvas_.drawText(
+                "COMMANDER",
+                {
+                    playerArea.x + 20.0F,
+                    playerArea.y + 35.0F,
+                    playerArea.width - 40.0F,
+                    35.0F
+                },
+                22,
+                Ink::Black,
+                TextAlignment::Center,
+                rotation
+            );
+
+            canvas_.drawText(
+                "DAMAGE",
+                {
+                    playerArea.x + 20.0F,
+                    playerArea.y + 72.0F,
+                    playerArea.width - 40.0F,
+                    35.0F
+                },
+                22,
+                Ink::Black,
+                TextAlignment::Center,
+                rotation
+            );
+
+            canvas_.drawText(
+                "Swipe to save",
+                {
+                    playerArea.x + 20.0F,
+                    playerArea.y +
+                        playerArea.height -
+                        70.0F,
+                    playerArea.width - 40.0F,
+                    35.0F
+                },
+                16,
+                Ink::DarkGray,
+                TextAlignment::Center,
+                rotation
+            );
+
             continue;
         }
 
-        const std::size_t rowIndex =
-            getCommanderDamageRowIndex(
-                sourcePlayer,
-                targetPlayer,
-                game.getPlayerCount()
-            );
-
-        const Rect row = {
-            150.0F,
-            245.0F +
-                static_cast<float>(rowIndex) * 65.0F,
-            500.0F,
-            55.0F
-        };
-
+        /*
+         * Die drei anderen Felder repräsentieren die möglichen
+         * Commander-Damage-Quellen.
+         */
         const Rect minusArea =
-            getCommanderDamageMinusRectangle(
-                sourcePlayer,
-                targetPlayer,
-                game.getPlayerCount()
+            tableLayout_.minusArea(
+                playerIndex,
+                playerCount
             );
 
         const Rect plusArea =
-            getCommanderDamagePlusRectangle(
-                sourcePlayer,
-                targetPlayer,
-                game.getPlayerCount()
+            tableLayout_.plusArea(
+                playerIndex,
+                playerCount
             );
 
-        const Rect damageArea = {
-            460.0F,
-            row.y,
-            110.0F,
-            row.height
-        };
-
-        canvas_.drawRect(
-            row,
-            2.0F,
-            Ink::Black
-        );
+        const Rect damageArea =
+            tableLayout_.counterArea(
+                playerIndex,
+                playerCount
+            );
 
         canvas_.drawText(
-            "Player " +
-                std::to_string(targetPlayer + 1),
-            {
-                row.x + 15.0F,
-                row.y,
-                220.0F,
-                row.height
-            },
-            20,
+            std::to_string(
+                draft.damageFrom(playerIndex)
+            ),
+            damageArea,
+            76,
             Ink::Black,
-            TextAlignment::Left
-        );
-
-        canvas_.drawRect(
-            minusArea,
-            2.0F,
-            Ink::Black
+            TextAlignment::Center,
+            rotation
         );
 
         canvas_.drawText(
             "-",
             minusArea,
-            30,
-            Ink::Black,
-            TextAlignment::Center
-        );
-
-        canvas_.drawText(
-            std::to_string(
-                game.getCommanderDamage(
-                    sourcePlayer,
-                    targetPlayer
-                )
-            ),
-            damageArea,
-            28,
-            Ink::Black,
-            TextAlignment::Center
-        );
-
-        canvas_.drawRect(
-            plusArea,
-            2.0F,
-            Ink::Black
+            42,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
         );
 
         canvas_.drawText(
             "+",
             plusArea,
-            30,
-            Ink::Black,
-            TextAlignment::Center
+            42,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
+        );
+
+        /*
+         * Kleine Kennzeichnung der Schadensquelle.
+         *
+         * Spielernamen werden weiterhin nicht verwendet.
+         */
+        canvas_.drawText(
+            std::to_string(playerIndex + 1),
+            {
+                playerArea.x + 12.0F,
+                playerArea.y + 10.0F,
+                40.0F,
+                28.0F
+            },
+            16,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
         );
     }
 
-    canvas_.drawText(
-        "Swipe left or right to return",
-        {
-            200.0F,
-            445.0F,
-            400.0F,
-            25.0F
-        },
-        16,
-        Ink::DarkGray,
-        TextAlignment::Center
-    );
-
     canvas_.invalidate(fullScreen);
+
+    (void)game;
 }
 } // namespace sticky_lotus::ui

@@ -2,6 +2,12 @@ add_library(
         sticky-lotus-engine
         STATIC
         src/AppRenderer.cpp
+        src/Application.cpp
+        src/TableLayout.cpp
+        src/screens/GameScreen.cpp
+        src/screens/SettingsScreen.cpp
+        src/screens/CommanderDamageScreen.cpp
+        src/screens/ScreenManager.cpp
 )
 
 target_include_directories(
