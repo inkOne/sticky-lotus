@@ -35,4 +35,5 @@ namespace sticky_lotus::app {
         canvas_.flush();
     }
 
+
 } // namespace sticky_lotus::app

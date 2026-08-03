@@ -42,17 +42,13 @@ void CommanderDamageScreen::handleInput(
     const input::InputFrame& inputFrame
 )
 {
-    /*
-     * Escape verwirft die Änderungen.
-     */
+    // Escape verwirft die Änderungen.
     if (inputFrame.cancelPressed) {
         leaveWithoutCommit();
         return;
     }
 
-    /*
-     * Die mittlere Hardwaretaste übernimmt die Änderungen.
-     */
+    // Die mittlere Hardwaretaste speichert und schließt.
     if (inputFrame.buttons.centerPressed) {
         leaveAndCommit();
         return;
@@ -104,11 +100,11 @@ void CommanderDamageScreen::processTap(
         }
 
         if (
-        context_.renderer
-            .getCommanderDamageMinusRectangle(
-                attackingPlayer,
-                playerCount
-            )
+            context_.renderer
+                .getCommanderDamageMinusRectangle(
+                    attackingPlayer,
+                    playerCount
+                )
                 .contains(position)
         ) {
             context_.commanderDraft.changeDamage(
@@ -120,11 +116,11 @@ void CommanderDamageScreen::processTap(
         }
 
         if (
-        context_.renderer
-            .getCommanderDamagePlusRectangle(
-                attackingPlayer,
-                playerCount
-            )
+            context_.renderer
+                .getCommanderDamagePlusRectangle(
+                    attackingPlayer,
+                    playerCount
+                )
                 .contains(position)
         ) {
             context_.commanderDraft.changeDamage(

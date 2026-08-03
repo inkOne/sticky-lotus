@@ -158,7 +158,29 @@ public:
 
         return editedDamage_[attackingPlayer];
     }
+    [[nodiscard]]
+    bool isLethal() const
+    {
+        if (!active_) {
+            return false;
+        }
 
+        for (
+            std::size_t attacker = 0;
+            attacker < playerCount_;
+            ++attacker
+        ) {
+            if (attacker == receivingPlayer_) {
+                continue;
+            }
+
+            if (editedDamage_[attacker] >= 21) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 private:
     bool active_ = false;
 

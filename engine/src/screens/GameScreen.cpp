@@ -65,11 +65,19 @@ void GameScreen::processTap(
     }
 
     const std::size_t playerIndex =
-        getPlayerIndex(position);
+    getPlayerIndex(position);
 
     if (
         playerIndex >=
         context_.game.getPlayerCount()
+    ) {
+        return;
+    }
+
+    if (
+        context_.game.isPlayerEliminated(
+            playerIndex
+        )
     ) {
         return;
     }

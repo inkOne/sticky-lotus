@@ -104,6 +104,10 @@ private:
         bool upsideDown
     );
 
+    void drawPixelSkull(
+    const Rect& area,
+    float rotationDegrees
+);
     void drawMenuButton();
 
     void drawSettingsButton(

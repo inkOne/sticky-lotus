@@ -6,9 +6,17 @@
 #include <cstddef>
 #include <string>
 
-struct Player {
+enum class PlayerStatus
+{
+    Active,
+    Eliminated
+};
+
+struct Player
+{
     std::string name;
     int life = 40;
+    PlayerStatus status = PlayerStatus::Active;
 };
 
 class GameState {
@@ -25,6 +33,11 @@ public:
 
     [[nodiscard]]
     const GameSettings& getSettings() const;
+
+    [[nodiscard]]
+    bool isPlayerEliminated(
+        std::size_t playerIndex
+    ) const;
 
     void changeLife(std::size_t playerIndex, int amount);
 
@@ -51,6 +64,7 @@ private:
 
     std::array<Player, maximumPlayerCount> players_;
 
+
     // Erster Index: angreifender Commander
     // Zweiter Index: Spieler, der Schaden erhalten hat
     std::array<
@@ -59,4 +73,7 @@ private:
     > commanderDamage_{};
 
     void resetCommanderDamage();
+    void updatePlayerStatus(
+    std::size_t playerIndex
+);
 };

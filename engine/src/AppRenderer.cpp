@@ -1,5 +1,6 @@
 #include "sticky_lotus/ui/AppRenderer.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 
@@ -28,11 +29,12 @@ void AppRenderer::drawGame(const GameState& game)
 }
 void AppRenderer::drawPlayers(
         const GameState& game
+
     )
 {
     const std::size_t playerCount =
         game.getPlayerCount();
-
+    
     for (
         std::size_t playerIndex = 0;
         playerIndex < playerCount;
@@ -52,11 +54,98 @@ void AppRenderer::drawPlayers(
     }
 }
 
-    void AppRenderer::drawPlayer(
-        const Player& player,
-        const Rect& playerArea,
-        const bool upsideDown
-    )
+void AppRenderer::drawPixelSkull(
+    const Rect& area,
+    const float rotationDegrees
+)
+{
+    /*
+     * Pixelart-Totenkopf aus einem 9 × 9 Raster.
+     *
+     * Dadurch benötigen wir keine Bilddatei und können
+     * dasselbe Symbol später auch auf dem Sticky zeichnen.
+     */
+    static constexpr int skull[9][9] = {
+        {0, 0, 1, 1, 1, 1, 1, 0, 0},
+        {0, 1, 1, 1, 1, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 0, 0, 1, 0, 0, 1, 1},
+        {1, 1, 0, 0, 1, 0, 0, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {0, 1, 1, 0, 1, 0, 1, 1, 0},
+        {0, 0, 1, 1, 1, 1, 1, 0, 0},
+        {0, 0, 1, 0, 1, 0, 1, 0, 0}
+    };
+
+    constexpr float gridSize = 9.0F;
+
+    const float pixelSize =
+        std::min(
+            area.width / gridSize,
+            area.height / gridSize
+        );
+
+    const float drawingWidth =
+        pixelSize * gridSize;
+
+    const float drawingHeight =
+        pixelSize * gridSize;
+
+    const float startX =
+        area.x +
+        (area.width - drawingWidth) / 2.0F;
+
+    const float startY =
+        area.y +
+        (area.height - drawingHeight) / 2.0F;
+
+    /*
+     * Bei 180 Grad werden die Rasterkoordinaten umgekehrt.
+     */
+    const bool upsideDown =
+        rotationDegrees == 180.0F;
+
+    for (int row = 0; row < 9; ++row) {
+        for (int column = 0; column < 9; ++column) {
+            if (skull[row][column] == 0) {
+                continue;
+            }
+
+            const int displayRow =
+                upsideDown
+                    ? 8 - row
+                    : row;
+
+            const int displayColumn =
+                upsideDown
+                    ? 8 - column
+                    : column;
+
+            canvas_.fillRect(
+                {
+                    startX +
+                        static_cast<float>(
+                            displayColumn
+                        ) * pixelSize,
+
+                    startY +
+                        static_cast<float>(
+                            displayRow
+                        ) * pixelSize,
+
+                    pixelSize,
+                    pixelSize
+                },
+                Ink::Black
+            );
+        }
+    }
+}
+   void AppRenderer::drawPlayer(
+    const Player& player,
+    const Rect& playerArea,
+    const bool upsideDown
+)
 {
     canvas_.fillRect(
         playerArea,
@@ -69,6 +158,84 @@ void AppRenderer::drawPlayers(
         Ink::Black
     );
 
+    const bool eliminated =
+        player.status == PlayerStatus::Eliminated;
+
+    const float rotation =
+        upsideDown ? 180.0F : 0.0F;
+
+    if (eliminated) {
+        /*
+         * Graues diagonales Raster.
+         *
+         * Es verwendet nur die vier abstrakten E-Ink-Graustufen
+         * und benötigt weder Transparenz noch Farbmischung.
+         */
+        constexpr float hatchSpacing = 12.0F;
+
+        for (
+            float offset = -playerArea.height;
+            offset < playerArea.width;
+            offset += hatchSpacing
+        ) {
+            canvas_.drawLine(
+                {
+                    playerArea.x + offset,
+                    playerArea.y + playerArea.height
+                },
+                {
+                    playerArea.x +
+                        offset +
+                        playerArea.height,
+                    playerArea.y
+                },
+                1.0F,
+                Ink::LightGray
+            );
+        }
+
+        drawPixelSkull(
+            {
+                playerArea.x +
+                    playerArea.width / 2.0F -
+                    55.0F,
+
+                playerArea.y +
+                    playerArea.height / 2.0F -
+                    55.0F,
+
+                110.0F,
+                110.0F
+            },
+            rotation
+        );
+
+        canvas_.drawText(
+            "ELIMINATED",
+            {
+                playerArea.x + 20.0F,
+                playerArea.y +
+                    playerArea.height -
+                    55.0F,
+                playerArea.width - 40.0F,
+                35.0F
+            },
+            18,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
+
+        return;
+    }
+
+    /*
+     * Den Spielerindex anhand seines Rechtecks ermitteln.
+     *
+     * Langfristig übergeben wir den Index besser direkt an
+     * drawPlayer(). Für den aktuellen Aufbau bleibt diese
+     * Berechnung kompatibel.
+     */
     std::size_t playerIndex = 0;
 
     if (playerArea.x >= screenWidth / 2.0F) {
@@ -104,9 +271,6 @@ void AppRenderer::drawPlayers(
             playerIndex,
             playerCount
         );
-
-    const float rotation =
-        upsideDown ? 180.0F : 0.0F;
 
     canvas_.drawText(
         std::to_string(player.life),
@@ -638,49 +802,83 @@ void AppRenderer::drawCommanderDamage(
          * zur aktuellen Bearbeitung.
          */
         if (playerIndex == receivingPlayer) {
-            canvas_.drawText(
-                "COMMANDER",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y + 35.0F,
-                    playerArea.width - 40.0F,
-                    35.0F
-                },
-                22,
-                Ink::Black,
-                TextAlignment::Center,
-                rotation
-            );
+            if (draft.isLethal()) {
+                drawPixelSkull(
+                    {
+                        playerArea.x +
+                            playerArea.width / 2.0F -
+                            50.0F,
 
-            canvas_.drawText(
-                "DAMAGE",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y + 72.0F,
-                    playerArea.width - 40.0F,
-                    35.0F
-                },
-                22,
-                Ink::Black,
-                TextAlignment::Center,
-                rotation
-            );
+                        playerArea.y +
+                            playerArea.height / 2.0F -
+                            50.0F,
 
-            canvas_.drawText(
-                "Swipe to save",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y +
-                        playerArea.height -
-                        70.0F,
-                    playerArea.width - 40.0F,
-                    35.0F
-                },
-                16,
-                Ink::DarkGray,
-                TextAlignment::Center,
-                rotation
-            );
+                        100.0F,
+                        100.0F
+                    },
+                    rotation
+                );
+
+                canvas_.drawText(
+                    "LETHAL",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y +
+                            playerArea.height -
+                            55.0F,
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    18,
+                    Ink::Black,
+                    TextAlignment::Center,
+                    rotation
+                );
+            } else {
+                canvas_.drawText(
+                    "COMMANDER",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y + 35.0F,
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    22,
+                    Ink::Black,
+                    TextAlignment::Center,
+                    rotation
+                );
+
+                canvas_.drawText(
+                    "DAMAGE",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y + 72.0F,
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    22,
+                    Ink::Black,
+                    TextAlignment::Center,
+                    rotation
+                );
+
+                canvas_.drawText(
+                    "Swipe to save",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y +
+                            playerArea.height -
+                            70.0F,
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    16,
+                    Ink::DarkGray,
+                    TextAlignment::Center,
+                    rotation
+                );
+            }
 
             continue;
         }
@@ -760,4 +958,6 @@ void AppRenderer::drawCommanderDamage(
 
     (void)game;
 }
+
+
 } // namespace sticky_lotus::ui

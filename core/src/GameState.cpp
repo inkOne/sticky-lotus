@@ -44,6 +44,7 @@ void GameState::changeLife(
     }
 
     players_[playerIndex].life += amount;
+    updatePlayerStatus(playerIndex);
 }
 
 void GameState::setPlayerMode(const PlayerMode mode)
@@ -80,12 +81,12 @@ void GameState::setTwoPlayerStartingLife(const int life)
 
 void GameState::reset()
 {
-    const int startingLife = settings_.startingLife();
-
+    const int startingLife =
+        settings_.startingLife();
     for (Player& player : players_) {
         player.life = startingLife;
+        player.status = PlayerStatus::Active;
     }
-
     resetCommanderDamage();
 }
 
@@ -112,6 +113,7 @@ void GameState::changeCommanderDamage(
 
     // Commander Damage verändert gleichzeitig die Lebenspunkte.
     players_[defenderIndex].life -= actualChange;
+    updatePlayerStatus(defenderIndex);
 }
 
 int GameState::getCommanderDamage(
@@ -134,4 +136,56 @@ void GameState::resetCommanderDamage()
     for (auto& attackerValues : commanderDamage_) {
         attackerValues.fill(0);
     }
+}
+bool GameState::isPlayerEliminated(
+    const std::size_t playerIndex
+) const
+{
+    if (playerIndex >= getPlayerCount()) {
+        return false;
+    }
+
+    return players_[playerIndex].status ==
+        PlayerStatus::Eliminated;
+}
+
+void GameState::updatePlayerStatus(
+    const std::size_t playerIndex
+)
+{
+    if (playerIndex >= getPlayerCount()) {
+        return;
+    }
+
+    bool commanderLoss = false;
+
+    /*
+     * Ein Spieler verliert durch Commander Damage,
+     * wenn ein einzelner Commander mindestens
+     * 21 Kampfschaden verursacht hat.
+     */
+    for (
+        std::size_t attacker = 0;
+        attacker < getPlayerCount();
+        ++attacker
+    ) {
+        if (attacker == playerIndex) {
+            continue;
+        }
+
+        if (
+            commanderDamage_[attacker][playerIndex] >= 21
+        ) {
+            commanderLoss = true;
+            break;
+        }
+    }
+
+    const bool lifeLoss =
+        players_[playerIndex].life <= 0;
+
+    players_[playerIndex].status =
+        commanderLoss || lifeLoss
+            ? PlayerStatus::Eliminated
+            : PlayerStatus::Active;
 }
