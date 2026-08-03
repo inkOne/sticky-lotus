@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GameSettings.h"
+#include "sticky_lotus/GameSettings.h"
 
 #include <array>
 #include <cstddef>

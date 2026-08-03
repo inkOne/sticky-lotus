@@ -1,4 +1,4 @@
-#include "GameState.h"
+#include "sticky_lotus/GameState.h"
 
 #include <algorithm>
 #include <stdexcept>

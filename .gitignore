@@ -1,0 +1,14 @@
+# CLion
+.idea/
+cmake-build-*/
+
+# Desktop-CMake
+build/
+
+# ESP-IDF
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+
+# macOS
+.DS_Store
