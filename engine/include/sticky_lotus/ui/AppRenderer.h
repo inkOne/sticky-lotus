@@ -3,6 +3,7 @@
 #include "sticky_lotus/GameState.h"
 #include "sticky_lotus/ui/Canvas.h"
 #include "sticky_lotus/ui/Geometry.h"
+#include <cstddef>
 
 namespace sticky_lotus::ui {
 
@@ -30,7 +31,10 @@ public:
      */
     void drawSettings(const GameState& game);
 
-    // Bereiche, die auch für die Eingabeverarbeitung benötigt werden.
+    void drawCommanderDamage(
+        const GameState& game,
+        std::size_t sourcePlayer
+    );
 
     [[nodiscard]]
     Rect getMenuButtonRectangle() const;
@@ -74,6 +78,26 @@ public:
     [[nodiscard]]
     Rect getDoneButtonRectangle() const;
 
+    /**
+ * Liefert den Minus-Bereich eines Commander-Damage-Ziels.
+ */
+    [[nodiscard]]
+    Rect getCommanderDamageMinusRectangle(
+        std::size_t sourcePlayer,
+        std::size_t targetPlayer,
+        std::size_t playerCount
+    ) const;
+
+    /**
+     * Liefert den Plus-Bereich eines Commander-Damage-Ziels.
+     */
+    [[nodiscard]]
+    Rect getCommanderDamagePlusRectangle(
+        std::size_t sourcePlayer,
+        std::size_t targetPlayer,
+        std::size_t playerCount
+    ) const;
+
 private:
     static constexpr int columns = 2;
     static constexpr int rows = 2;
@@ -101,6 +125,18 @@ private:
         const char* label,
         bool selected
     );
+    /**
+ * Berechnet die sichtbare Zeile eines Zielspielers.
+ *
+ * Der Quellspieler selbst wird nicht dargestellt.
+ */
+    [[nodiscard]]
+    static std::size_t getCommanderDamageRowIndex(
+        std::size_t sourcePlayer,
+        std::size_t targetPlayer,
+        std::size_t playerCount
+    );
+
 };
 
 } // namespace sticky_lotus::ui

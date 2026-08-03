@@ -5,6 +5,7 @@ add_library(
         sticky-lotus-raylib-platform
         STATIC
         src/RaylibCanvas.cpp
+        src/RaylibInputProvider.cpp
 )
 
 target_include_directories(

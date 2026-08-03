@@ -1,33 +1,34 @@
 #include "sticky_lotus/GameState.h"
+#include "sticky_lotus/app/NavigationState.h"
+#include "sticky_lotus/input/InputProvider.h"
 #include "sticky_lotus/ui/AppRenderer.h"
 #include "sticky_lotus/ui/Geometry.h"
 #include "sticky_lotus_raylib/RaylibCanvas.h"
-#include "sticky_lotus_sim/RaylibInput.h"
-
-#include <raylib.h>
+#include "sticky_lotus_raylib/RaylibInputProvider.h"
 
 #include <cstddef>
 
 namespace {
 
+using sticky_lotus::app::NavigationState;
+using sticky_lotus::app::ScreenId;
+
+using sticky_lotus::input::GestureEvent;
+using sticky_lotus::input::HardwareButtonState;
+using sticky_lotus::input::InputFrame;
+using sticky_lotus::input::TouchGesture;
+
 using sticky_lotus::ui::AppRenderer;
 using sticky_lotus::ui::Point;
-using sticky_lotus::ui::Rect;
 
 using sticky_lotus_raylib::RaylibCanvas;
-
-using sticky_lotus_sim::GestureEvent;
-using sticky_lotus_sim::HardwareButtonState;
-using sticky_lotus_sim::PointerState;
-using sticky_lotus_sim::RaylibInput;
-using sticky_lotus_sim::TouchGesture;
+using sticky_lotus_raylib::RaylibInputProvider;
 
 /**
- * Ermittelt anhand einer Bildschirmposition,
- * welches Spielerfeld berührt wurde.
+ * Ermittelt das Spielerfeld an einer Bildschirmposition.
  */
 std::size_t getPlayerIndex(
-    const Vector2 position,
+    const Point position,
     const std::size_t playerCount
 )
 {
@@ -56,15 +57,10 @@ std::size_t getPlayerIndex(
 }
 
 /**
- * Ermittelt bei einem Tap, ob Leben addiert
- * oder abgezogen werden soll.
- *
- * Linke Hälfte  -> -1
- * Rechte Hälfte -> +1
+ * Linke Hälfte eines Spielerfeldes  -> -1
+ * Rechte Hälfte eines Spielerfeldes -> +1
  */
-int getLifeChange(
-    const Vector2 position
-)
+int getLifeChange(const Point position)
 {
     constexpr float cellWidth =
         AppRenderer::screenWidth / 2.0F;
@@ -85,171 +81,135 @@ int getLifeChange(
 }
 
 /**
- * Wandelt einen Raylib-Punkt in den plattformunabhängigen
- * Point-Typ der UI-Engine um.
- */
-Point toPoint(const Vector2 position)
-{
-    return {
-        position.x,
-        position.y
-    };
-}
-
-/**
- * Prüft, ob ein Punkt in einem plattformunabhängigen
- * UI-Rechteck liegt.
- */
-bool containsPoint(
-    const Rect& area,
-    const Vector2 position
-)
-{
-    return area.contains(
-        toPoint(position)
-    );
-}
-
-/**
- * Verarbeitet einen Tap innerhalb der Settings.
+ * Verarbeitet einen Tap in den Settings.
  */
 void processSettingsTap(
     GameState& game,
     const AppRenderer& renderer,
-    const Vector2 position,
-    bool& settingsOpen
+    const Point position,
+    NavigationState& navigation
 )
 {
-    if (containsPoint(
-        renderer.getCloseButtonRectangle(),
-        position
-    )) {
-        settingsOpen = false;
+    if (
+        renderer
+            .getCloseButtonRectangle()
+            .contains(position)
+    ) {
+        navigation.showGame();
         return;
     }
 
-    if (containsPoint(
-        renderer.getTwoPlayersButtonRectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getTwoPlayersButtonRectangle()
+            .contains(position)
+    ) {
         game.setPlayerMode(
             PlayerMode::TwoPlayers
         );
         return;
     }
 
-    if (containsPoint(
-        renderer.getFourPlayersButtonRectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getFourPlayersButtonRectangle()
+            .contains(position)
+    ) {
         game.setPlayerMode(
             PlayerMode::FourPlayers
         );
         return;
     }
 
-    if (containsPoint(
-        renderer.getMultiplayer40Rectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getMultiplayer40Rectangle()
+            .contains(position)
+    ) {
         game.setMultiplayerStartingLife(40);
         return;
     }
 
-    if (containsPoint(
-        renderer.getMultiplayer30Rectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getMultiplayer30Rectangle()
+            .contains(position)
+    ) {
         game.setMultiplayerStartingLife(30);
         return;
     }
 
-    if (containsPoint(
-        renderer.getMultiplayer20Rectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getMultiplayer20Rectangle()
+            .contains(position)
+    ) {
         game.setMultiplayerStartingLife(20);
         return;
     }
 
-    if (containsPoint(
-        renderer.getMultiplayerEditRectangle(),
-        position
-    )) {
-        TraceLog(
-            LOG_INFO,
-            "Custom multiplayer editor pressed"
-        );
-        return;
-    }
-
-    if (containsPoint(
-        renderer.getTwoPlayer20Rectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getTwoPlayer20Rectangle()
+            .contains(position)
+    ) {
         game.setTwoPlayerStartingLife(20);
         return;
     }
 
-    if (containsPoint(
-        renderer.getTwoPlayer30Rectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getTwoPlayer30Rectangle()
+            .contains(position)
+    ) {
         game.setTwoPlayerStartingLife(30);
         return;
     }
 
-    if (containsPoint(
-        renderer.getTwoPlayer40Rectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getTwoPlayer40Rectangle()
+            .contains(position)
+    ) {
         game.setTwoPlayerStartingLife(40);
         return;
     }
 
-    if (containsPoint(
-        renderer.getTwoPlayerEditRectangle(),
-        position
-    )) {
-        TraceLog(
-            LOG_INFO,
-            "Custom two-player editor pressed"
-        );
-        return;
-    }
-
-    if (containsPoint(
-        renderer.getResetButtonRectangle(),
-        position
-    )) {
+    if (
+        renderer
+            .getResetButtonRectangle()
+            .contains(position)
+    ) {
         game.reset();
-        settingsOpen = false;
+        navigation.showGame();
         return;
     }
 
-    if (containsPoint(
-        renderer.getDoneButtonRectangle(),
-        position
-    )) {
-        settingsOpen = false;
+    if (
+        renderer
+            .getDoneButtonRectangle()
+            .contains(position)
+    ) {
+        navigation.showGame();
     }
 }
 
 /**
- * Verarbeitet einen Tap in der Spielansicht.
+ * Verarbeitet einen Tap in der normalen Spielansicht.
  */
 void processGameTap(
     GameState& game,
     const AppRenderer& renderer,
-    const Vector2 position,
-    bool& settingsOpen
+    const Point position,
+    NavigationState& navigation
 )
 {
-    if (containsPoint(
-        renderer.getMenuButtonRectangle(),
-        position
-    )) {
-        settingsOpen = true;
+    if (
+        renderer
+            .getMenuButtonRectangle()
+            .contains(position)
+    ) {
+        navigation.showSettings();
         return;
     }
 
@@ -270,14 +230,13 @@ void processGameTap(
 }
 
 /**
- * Verarbeitet eine horizontale Wischgeste.
- *
- * Im Moment wird nur protokolliert, welcher Spieler
- * gewischt hat.
+ * Öffnet von der Spielansicht aus den
+ * Commander-Damage-Screen.
  */
-void processSwipe(
+void processGameSwipe(
     const GameState& game,
-    const GestureEvent& gestureEvent
+    const GestureEvent& gestureEvent,
+    NavigationState& navigation
 )
 {
     const std::size_t playerIndex =
@@ -290,57 +249,201 @@ void processSwipe(
         return;
     }
 
-    if (
-        gestureEvent.gesture ==
-        TouchGesture::SwipeLeft
-    ) {
-        TraceLog(
-            LOG_INFO,
-            "Player %d swiped left",
-            static_cast<int>(playerIndex + 1)
-        );
-    }
-
-    if (
-        gestureEvent.gesture ==
-        TouchGesture::SwipeRight
-    ) {
-        TraceLog(
-            LOG_INFO,
-            "Player %d swiped right",
-            static_cast<int>(playerIndex + 1)
-        );
-    }
+    navigation.showCommanderDamage(
+        playerIndex
+    );
 }
 
 /**
- * Verarbeitet die drei simulierten Sticky-Tasten.
+ * Verarbeitet die simulierten Sticky-Tasten.
  */
 void processHardwareButtons(
     GameState& game,
     const HardwareButtonState& buttons,
-    bool& settingsOpen
+    NavigationState& navigation
 )
 {
-    // Mittlere Taste öffnet oder schließt das Menü.
     if (buttons.centerPressed) {
-        settingsOpen = !settingsOpen;
+        if (
+            navigation.currentScreen() ==
+            ScreenId::Game
+        ) {
+            navigation.showSettings();
+        } else {
+            navigation.showGame();
+        }
     }
 
-    // Links und rechts werden vorerst nur außerhalb
-    // der Settings verwendet.
-    if (settingsOpen) {
+    if (
+        navigation.currentScreen() !=
+        ScreenId::Game
+    ) {
         return;
     }
 
-    // Vorläufig verändern die beiden äußeren Tasten
-    // die Lebenspunkte von Spieler 1.
     if (buttons.leftPressed) {
         game.changeLife(0, -1);
     }
 
     if (buttons.rightPressed) {
         game.changeLife(0, 1);
+    }
+}
+/**
+ * Verarbeitet Plus und Minus im Commander-Damage-Screen.
+ */
+void processCommanderDamageTap(
+        GameState& game,
+        const AppRenderer& renderer,
+        const Point position,
+        const NavigationState& navigation
+    )
+{
+    const std::size_t sourcePlayer =
+        navigation.selectedPlayer();
+
+    if (sourcePlayer >= game.getPlayerCount()) {
+        return;
+    }
+
+    for (
+        std::size_t targetPlayer = 0;
+        targetPlayer < game.getPlayerCount();
+        ++targetPlayer
+    ) {
+        if (targetPlayer == sourcePlayer) {
+            continue;
+        }
+
+        if (
+            renderer
+                .getCommanderDamageMinusRectangle(
+                    sourcePlayer,
+                    targetPlayer,
+                    game.getPlayerCount()
+                )
+                .contains(position)
+        ) {
+            game.changeCommanderDamage(
+                sourcePlayer,
+                targetPlayer,
+                -1
+            );
+
+            return;
+        }
+
+        if (
+            renderer
+                .getCommanderDamagePlusRectangle(
+                    sourcePlayer,
+                    targetPlayer,
+                    game.getPlayerCount()
+                )
+                .contains(position)
+        ) {
+            game.changeCommanderDamage(
+                sourcePlayer,
+                targetPlayer,
+                1
+            );
+
+            return;
+        }
+    }
+}
+/**
+ * Verarbeitet eine abgeschlossene Touchgeste.
+ */
+void processGesture(
+    GameState& game,
+    const AppRenderer& renderer,
+    const GestureEvent& gestureEvent,
+    NavigationState& navigation
+)
+{
+    switch (gestureEvent.gesture) {
+        case TouchGesture::Tap:
+            switch (navigation.currentScreen()) {
+                case ScreenId::Game:
+                    processGameTap(
+                        game,
+                        renderer,
+                        gestureEvent.endPosition,
+                        navigation
+                    );
+                    break;
+
+                case ScreenId::Settings:
+                    processSettingsTap(
+                        game,
+                        renderer,
+                        gestureEvent.endPosition,
+                        navigation
+                    );
+                    break;
+
+            case ScreenId::CommanderDamage:
+                processCommanderDamageTap(
+                    game,
+                    renderer,
+                    gestureEvent.endPosition,
+                    navigation
+                );
+                break;
+            }
+            break;
+
+        case TouchGesture::SwipeLeft:
+        case TouchGesture::SwipeRight:
+            if (
+                navigation.currentScreen() ==
+                ScreenId::Game
+            ) {
+                processGameSwipe(
+                    game,
+                    gestureEvent,
+                    navigation
+                );
+            } else if (
+                navigation.currentScreen() ==
+                ScreenId::CommanderDamage
+            ) {
+                navigation.showGame();
+            }
+            break;
+
+        case TouchGesture::SwipeUp:
+        case TouchGesture::SwipeDown:
+        case TouchGesture::None:
+            break;
+    }
+}
+
+/**
+ * Zeichnet die aktuell ausgewählte Ansicht.
+ */
+void drawCurrentScreen(
+    AppRenderer& renderer,
+    const GameState& game,
+    const NavigationState& navigation
+)
+{
+    switch (navigation.currentScreen()) {
+        case ScreenId::Game:
+            renderer.drawGame(game);
+            break;
+
+        case ScreenId::Settings:
+            renderer.drawSettings(game);
+            break;
+
+        case ScreenId::CommanderDamage:
+            renderer.drawCommanderDamage(
+                game,
+                navigation.selectedPlayer()
+            );
+            break;
     }
 }
 
@@ -354,77 +457,40 @@ int main()
         "Sticky Lotus Simulator"
     );
 
+    RaylibInputProvider input;
+
     GameState game;
     AppRenderer renderer(canvas);
-    RaylibInput input;
-
-    bool settingsOpen = false;
+    NavigationState navigation;
 
     while (!canvas.shouldClose()) {
-        const PointerState pointer =
-            input.readPointer();
-
-        const GestureEvent gestureEvent =
-            input.updateGesture(pointer);
-
-        const HardwareButtonState buttons =
-            input.readHardwareButtons();
+        const InputFrame inputFrame =
+            input.poll();
 
         processHardwareButtons(
             game,
-            buttons,
-            settingsOpen
+            inputFrame.buttons,
+            navigation
         );
 
-        switch (gestureEvent.gesture) {
-            case TouchGesture::Tap:
-                if (settingsOpen) {
-                    processSettingsTap(
-                        game,
-                        renderer,
-                        gestureEvent.endPosition,
-                        settingsOpen
-                    );
-                } else {
-                    processGameTap(
-                        game,
-                        renderer,
-                        gestureEvent.endPosition,
-                        settingsOpen
-                    );
-                }
-                break;
+        processGesture(
+            game,
+            renderer,
+            inputFrame.gesture,
+            navigation
+        );
 
-            case TouchGesture::SwipeLeft:
-            case TouchGesture::SwipeRight:
-                if (!settingsOpen) {
-                    processSwipe(
-                        game,
-                        gestureEvent
-                    );
-                }
-                break;
-
-            case TouchGesture::SwipeUp:
-            case TouchGesture::SwipeDown:
-            case TouchGesture::None:
-                break;
-        }
-
-        if (
-            settingsOpen &&
-            IsKeyPressed(KEY_ESCAPE)
-        ) {
-            settingsOpen = false;
+        if (inputFrame.cancelPressed) {
+            navigation.showGame();
         }
 
         canvas.beginFrame();
 
-        if (settingsOpen) {
-            renderer.drawSettings(game);
-        } else {
-            renderer.drawGame(game);
-        }
+        drawCurrentScreen(
+            renderer,
+            game,
+            navigation
+        );
 
         canvas.endFrame();
         canvas.flush();

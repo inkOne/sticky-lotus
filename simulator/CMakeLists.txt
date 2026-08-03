@@ -1,7 +1,6 @@
 add_executable(
         sticky-lotus-simulator
         src/main.cpp
-        src/RaylibInput.cpp
 )
 
 target_include_directories(

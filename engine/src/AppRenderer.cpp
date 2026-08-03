@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <string>
 
+class GameState;
+
 namespace sticky_lotus::ui {
 
 AppRenderer::AppRenderer(Canvas& canvas)
@@ -563,5 +565,255 @@ Rect AppRenderer::getDoneButtonRectangle() const
         42.0F
     };
 }
+    std::size_t AppRenderer::getCommanderDamageRowIndex(
+        const std::size_t sourcePlayer,
+        const std::size_t targetPlayer,
+        const std::size_t playerCount
+    )
+{
+    std::size_t visibleRow = 0;
 
+    for (
+        std::size_t player = 0;
+        player < playerCount;
+        ++player
+    ) {
+        if (player == sourcePlayer) {
+            continue;
+        }
+
+        if (player == targetPlayer) {
+            return visibleRow;
+        }
+
+        ++visibleRow;
+    }
+
+    return visibleRow;
+}
+
+    Rect AppRenderer::getCommanderDamageMinusRectangle(
+        const std::size_t sourcePlayer,
+        const std::size_t targetPlayer,
+        const std::size_t playerCount
+    ) const
+{
+    const std::size_t rowIndex =
+        getCommanderDamageRowIndex(
+            sourcePlayer,
+            targetPlayer,
+            playerCount
+        );
+
+    return {
+        395.0F,
+        245.0F +
+            static_cast<float>(rowIndex) * 65.0F,
+        55.0F,
+        55.0F
+    };
+}
+
+    Rect AppRenderer::getCommanderDamagePlusRectangle(
+        const std::size_t sourcePlayer,
+        const std::size_t targetPlayer,
+        const std::size_t playerCount
+    ) const
+{
+    const std::size_t rowIndex =
+        getCommanderDamageRowIndex(
+            sourcePlayer,
+            targetPlayer,
+            playerCount
+        );
+
+    return {
+        580.0F,
+        245.0F +
+            static_cast<float>(rowIndex) * 65.0F,
+        55.0F,
+        55.0F
+    };
+}
+void AppRenderer::drawCommanderDamage(
+    const GameState& game,
+    const std::size_t sourcePlayer
+)
+{
+    canvas_.clear(Ink::White);
+
+    const Rect fullScreen = {
+        0.0F,
+        0.0F,
+        static_cast<float>(screenWidth),
+        static_cast<float>(screenHeight)
+    };
+
+    canvas_.drawRect(
+        fullScreen,
+        3.0F,
+        Ink::Black
+    );
+
+    canvas_.drawText(
+        "Commander Damage",
+        {
+            40.0F,
+            20.0F,
+            720.0F,
+            50.0F
+        },
+        32,
+        Ink::Black,
+        TextAlignment::Center
+    );
+
+    canvas_.drawText(
+        "Damage source",
+        {
+            40.0F,
+            75.0F,
+            720.0F,
+            30.0F
+        },
+        18,
+        Ink::DarkGray,
+        TextAlignment::Center
+    );
+
+    canvas_.drawText(
+        std::to_string(sourcePlayer + 1),
+        {
+            300.0F,
+            105.0F,
+            200.0F,
+            100.0F
+        },
+        68,
+        Ink::Black,
+        TextAlignment::Center
+    );
+
+    for (
+        std::size_t targetPlayer = 0;
+        targetPlayer < game.getPlayerCount();
+        ++targetPlayer
+    ) {
+        if (targetPlayer == sourcePlayer) {
+            continue;
+        }
+
+        const std::size_t rowIndex =
+            getCommanderDamageRowIndex(
+                sourcePlayer,
+                targetPlayer,
+                game.getPlayerCount()
+            );
+
+        const Rect row = {
+            150.0F,
+            245.0F +
+                static_cast<float>(rowIndex) * 65.0F,
+            500.0F,
+            55.0F
+        };
+
+        const Rect minusArea =
+            getCommanderDamageMinusRectangle(
+                sourcePlayer,
+                targetPlayer,
+                game.getPlayerCount()
+            );
+
+        const Rect plusArea =
+            getCommanderDamagePlusRectangle(
+                sourcePlayer,
+                targetPlayer,
+                game.getPlayerCount()
+            );
+
+        const Rect damageArea = {
+            460.0F,
+            row.y,
+            110.0F,
+            row.height
+        };
+
+        canvas_.drawRect(
+            row,
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawText(
+            "Player " +
+                std::to_string(targetPlayer + 1),
+            {
+                row.x + 15.0F,
+                row.y,
+                220.0F,
+                row.height
+            },
+            20,
+            Ink::Black,
+            TextAlignment::Left
+        );
+
+        canvas_.drawRect(
+            minusArea,
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawText(
+            "-",
+            minusArea,
+            30,
+            Ink::Black,
+            TextAlignment::Center
+        );
+
+        canvas_.drawText(
+            std::to_string(
+                game.getCommanderDamage(
+                    sourcePlayer,
+                    targetPlayer
+                )
+            ),
+            damageArea,
+            28,
+            Ink::Black,
+            TextAlignment::Center
+        );
+
+        canvas_.drawRect(
+            plusArea,
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawText(
+            "+",
+            plusArea,
+            30,
+            Ink::Black,
+            TextAlignment::Center
+        );
+    }
+
+    canvas_.drawText(
+        "Swipe left or right to return",
+        {
+            200.0F,
+            445.0F,
+            400.0F,
+            25.0F
+        },
+        16,
+        Ink::DarkGray,
+        TextAlignment::Center
+    );
+
+    canvas_.invalidate(fullScreen);
+}
 } // namespace sticky_lotus::ui
