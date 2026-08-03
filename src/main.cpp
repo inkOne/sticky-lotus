@@ -6,6 +6,16 @@
 
 namespace {
 
+// -----------------------------------------------------------------------------
+// Display-Konfiguration
+// -----------------------------------------------------------------------------
+//
+// Der reTerminal Sticky besitzt ein Display mit 800 × 480 Pixeln.
+// Deshalb verwendet auch der Simulator exakt diese Auflösung.
+//
+// Das echte Gerät ist ein monochromes E-Ink-Display mit vier Graustufen.
+// Im Simulator verwenden wir deshalb ausschließlich Schwarz, Weiß und Grau.
+//
 constexpr int screenWidth = 800;
 constexpr int screenHeight = 480;
 
@@ -15,27 +25,53 @@ constexpr int rows = 2;
 constexpr int cellWidth = screenWidth / columns;
 constexpr int cellHeight = screenHeight / rows;
 
-constexpr Color overlayBackground = {
-    20,
-    20,
-    24,
-    245
-};
-
-constexpr Color panelBackground = {
-    45,
-    45,
-    52,
+// -----------------------------------------------------------------------------
+// Monochrome Farbpalette
+// -----------------------------------------------------------------------------
+//
+// Diese vier Werte entsprechen sinngemäß den vier Graustufen des Sticky.
+// Die konkreten Pixelwerte werden beim späteren Sticky-Renderer angepasst.
+//
+constexpr Color inkBlack = {
+    0,
+    0,
+    0,
     255
 };
 
-constexpr Color selectedButtonColor = {
-    80,
-    130,
-    220,
+constexpr Color inkDarkGray = {
+    85,
+    85,
+    85,
     255
 };
 
+constexpr Color inkLightGray = {
+    190,
+    190,
+    190,
+    255
+};
+
+constexpr Color inkWhite = {
+    255,
+    255,
+    255,
+    255
+};
+
+// -----------------------------------------------------------------------------
+// Zentrierten Text zeichnen
+// -----------------------------------------------------------------------------
+//
+// Diese Funktion zeichnet einen Text mittig innerhalb eines Rechtecks.
+//
+// upsideDown:
+// true  -> Text wird um 180 Grad gedreht
+// false -> Text wird normal dargestellt
+//
+// Die Drehung wird für die oberen beiden Spieler verwendet.
+//
 void drawCenteredText(
     const char* text,
     const Rectangle& area,
@@ -75,6 +111,9 @@ void drawCenteredText(
     );
 }
 
+// -----------------------------------------------------------------------------
+// Rechteck des zentralen Menüknopfes
+// -----------------------------------------------------------------------------
 Rectangle getMenuButtonRectangle()
 {
     constexpr float buttonSize = 58.0F;
@@ -87,6 +126,17 @@ Rectangle getMenuButtonRectangle()
     };
 }
 
+// -----------------------------------------------------------------------------
+// Zentralen Menüknopf zeichnen
+// -----------------------------------------------------------------------------
+//
+// Der Knopf verwendet keine Farben, sondern nur:
+// - weißen Hintergrund
+// - schwarze Umrandung
+// - drei schwarze Linien
+//
+// Dadurch ist er für E-Ink geeignet.
+//
 void drawMenuButton()
 {
     const Rectangle button = getMenuButtonRectangle();
@@ -99,18 +149,18 @@ void drawMenuButton()
     DrawCircleV(
         center,
         button.width / 2.0F,
-        DARKGRAY
+        inkWhite
     );
 
     DrawCircleLines(
         static_cast<int>(center.x),
         static_cast<int>(center.y),
         button.width / 2.0F,
-        LIGHTGRAY
+        inkBlack
     );
 
     constexpr float lineWidth = 25.0F;
-    constexpr float lineHeight = 3.0F;
+    constexpr float lineHeight = 4.0F;
     constexpr float lineSpacing = 8.0F;
 
     for (int line = -1; line <= 1; ++line) {
@@ -123,26 +173,29 @@ void drawMenuButton()
             lineHeight
         };
 
-        DrawRectangleRounded(
+        DrawRectangleRec(
             lineArea,
-            1.0F,
-            4,
-            WHITE
+            inkBlack
         );
     }
 }
 
+// -----------------------------------------------------------------------------
+// Spieler anhand einer Touch- oder Mausposition bestimmen
+// -----------------------------------------------------------------------------
 std::size_t getPlayerIndex(
     const Vector2 position,
     const std::size_t playerCount
 )
 {
+    // Bei zwei Spielern wird der Bildschirm vertikal geteilt.
     if (playerCount == 2) {
         return position.x < screenWidth / 2.0F
             ? 0
             : 1;
     }
 
+    // Bei vier Spielern wird ein 2 × 2-Raster verwendet.
     const int column =
         position.x < cellWidth ? 0 : 1;
 
@@ -154,6 +207,13 @@ std::size_t getPlayerIndex(
     );
 }
 
+// -----------------------------------------------------------------------------
+// Ermitteln, ob Leben addiert oder abgezogen werden soll
+// -----------------------------------------------------------------------------
+//
+// Linke Hälfte eines Spielerfeldes  -> -1
+// Rechte Hälfte eines Spielerfeldes -> +1
+//
 int getLifeChange(
     const Vector2 position,
     const std::size_t playerCount
@@ -178,27 +238,42 @@ int getLifeChange(
         : 1;
 }
 
+// -----------------------------------------------------------------------------
+// Einzelnes Spielerfeld zeichnen
+// -----------------------------------------------------------------------------
 void drawPlayer(
     const Player& player,
-    const std::size_t index,
     const Rectangle& playerArea,
     const bool upsideDown
 )
 {
+    // Weißer Hintergrund.
     DrawRectangleRec(
         playerArea,
-        RAYWHITE
+        inkWhite
     );
 
+    // Schwarze Feldumrandung.
     DrawRectangleLinesEx(
         playerArea,
         2.0F,
-        BLACK
+        inkBlack
     );
+
+    // Spielernamen werden absichtlich nicht angezeigt.
+    //
+    // DrawText(
+    //     player.name.c_str(),
+    //     static_cast<int>(playerArea.x + 20.0F),
+    //     static_cast<int>(playerArea.y + 20.0F),
+    //     24,
+    //     inkBlack
+    // );
 
     constexpr float sideButtonWidth = 75.0F;
     constexpr float sideMargin = 15.0F;
 
+    // Linker Bedienbereich.
     const Rectangle minusArea = {
         playerArea.x + sideMargin,
         playerArea.y,
@@ -206,6 +281,7 @@ void drawPlayer(
         playerArea.height
     };
 
+    // Rechter Bedienbereich.
     const Rectangle plusArea = {
         playerArea.x +
             playerArea.width -
@@ -216,6 +292,7 @@ void drawPlayer(
         playerArea.height
     };
 
+    // Mittlerer Bereich für die Lebenspunkte.
     const Rectangle lifeArea = {
         playerArea.x + sideButtonWidth,
         playerArea.y,
@@ -227,7 +304,7 @@ void drawPlayer(
         TextFormat("%d", player.life),
         lifeArea,
         90,
-        BLACK,
+        inkBlack,
         upsideDown
     );
 
@@ -235,7 +312,7 @@ void drawPlayer(
         "-",
         minusArea,
         42,
-        DARKGRAY,
+        inkDarkGray,
         upsideDown
     );
 
@@ -243,18 +320,20 @@ void drawPlayer(
         "+",
         plusArea,
         42,
-        DARKGRAY,
+        inkDarkGray,
         upsideDown
     );
-
-    (void)index;
 }
 
+// -----------------------------------------------------------------------------
+// Alle Spielerfelder zeichnen
+// -----------------------------------------------------------------------------
 void drawPlayers(const GameState& game)
 {
     const std::size_t playerCount =
         game.getPlayerCount();
 
+    // Zwei-Spieler-Modus.
     if (playerCount == 2) {
         for (
             std::size_t index = 0;
@@ -270,12 +349,13 @@ void drawPlayers(const GameState& game)
                 static_cast<float>(screenHeight)
             };
 
+            // Spieler 1 steht auf der gegenüberliegenden Seite
+            // und wird deshalb um 180 Grad gedreht.
             const bool upsideDown =
                 index == 0;
 
             drawPlayer(
                 game.getPlayer(index),
-                index,
                 playerArea,
                 upsideDown
             );
@@ -284,16 +364,21 @@ void drawPlayers(const GameState& game)
         return;
     }
 
+    // Vier-Spieler-Modus.
     for (
         std::size_t index = 0;
         index < playerCount;
         ++index
     ) {
         const int column =
-            static_cast<int>(index % columns);
+            static_cast<int>(
+                index % columns
+            );
 
         const int row =
-            static_cast<int>(index / columns);
+            static_cast<int>(
+                index / columns
+            );
 
         const Rectangle playerArea = {
             static_cast<float>(
@@ -306,59 +391,73 @@ void drawPlayers(const GameState& game)
             static_cast<float>(cellHeight)
         };
 
+        // Die oberen beiden Spielerfelder stehen auf dem Kopf.
         const bool upsideDown =
             index == 0 || index == 1;
 
         drawPlayer(
             game.getPlayer(index),
-            index,
             playerArea,
             upsideDown
         );
     }
 }
 
+// -----------------------------------------------------------------------------
+// Einstellungsbutton zeichnen
+// -----------------------------------------------------------------------------
+//
+// Der Button verwendet keine Farben.
+//
+// Ausgewählt:
+// - schwarzer Hintergrund
+// - weiße Schrift
+//
+// Nicht ausgewählt:
+// - weißer Hintergrund
+// - schwarze Schrift
+//
 bool drawSettingsButton(
     const Rectangle& area,
     const char* label,
     const bool selected
 )
 {
-    const Vector2 mousePosition =
+    const Vector2 pointer =
         GetMousePosition();
 
     const bool hovered =
         CheckCollisionPointRec(
-            mousePosition,
+            pointer,
             area
         );
 
-    Color background = selected
-        ? selectedButtonColor
-        : GRAY;
+    const Color background =
+        selected
+            ? inkBlack
+            : inkWhite;
 
-    if (hovered && !selected) {
-        background = LIGHTGRAY;
-    }
+    const Color foreground =
+        selected
+            ? inkWhite
+            : inkBlack;
 
-    DrawRectangleRounded(
+    DrawRectangleRec(
         area,
-        0.25F,
-        8,
         background
     );
 
     DrawRectangleLinesEx(
         area,
-        1.5F,
-        selected ? WHITE : DARKGRAY
+        hovered ? 3.0F : 2.0F,
+        inkBlack
     );
 
     drawCenteredText(
         label,
         area,
         20,
-        selected ? WHITE : BLACK
+        foreground
     );
 
     return hovered &&
@@ -367,52 +466,58 @@ bool drawSettingsButton(
         );
 }
 
+// -----------------------------------------------------------------------------
+// Settings-Overlay zeichnen
+// -----------------------------------------------------------------------------
 void drawSettingsOverlay(
     GameState& game,
     bool& settingsOpen
 )
 {
+    // Das Overlay ersetzt den bisherigen Bildinhalt vollständig.
+    //
+    // Für das echte E-Ink-Gerät ist das besser als transparente
+    // Überlagerungen, da Alpha-Blending dort nicht sinnvoll ist.
     DrawRectangle(
         0,
         0,
         screenWidth,
         screenHeight,
-        overlayBackground
+        inkWhite
     );
 
     const Rectangle panel = {
-        120.0F,
-        25.0F,
-        560.0F,
-        430.0F
+        100.0F,
+        20.0F,
+        600.0F,
+        440.0F
     };
 
-    DrawRectangleRounded(
+    DrawRectangleRec(
         panel,
-        0.04F,
-        10,
-        panelBackground
+        inkWhite
     );
 
     DrawRectangleLinesEx(
         panel,
-        2.0F,
-        LIGHTGRAY
+        3.0F,
+        inkBlack
     );
 
     DrawText(
         "Settings",
-        150,
-        48,
+        130,
+        42,
         32,
-        WHITE
+        inkBlack
     );
 
+    // Schließen-Button.
     const Rectangle closeButton = {
-        620.0F,
-        42.0F,
-        38.0F,
-        38.0F
+        635.0F,
+        35.0F,
+        45.0F,
+        45.0F
     };
 
     if (drawSettingsButton(
@@ -424,38 +529,35 @@ void drawSettingsOverlay(
         return;
     }
 
+    // -------------------------------------------------------------------------
+    // Spielerzahl
+    // -------------------------------------------------------------------------
     DrawText(
         "Players",
-        150,
-        100,
+        130,
+        95,
         22,
-        LIGHTGRAY
+        inkBlack
     );
 
     const Rectangle twoPlayersButton = {
-        150.0F,
         130.0F,
-        120.0F,
+        125.0F,
+        125.0F,
         44.0F
     };
 
     const Rectangle fourPlayersButton = {
-        285.0F,
-        130.0F,
-        120.0F,
+        270.0F,
+        125.0F,
+        125.0F,
         44.0F
     };
-
-    const bool twoPlayersSelected =
-        game.getPlayerCount() == 2;
-
-    const bool fourPlayersSelected =
-        game.getPlayerCount() == 4;
 
     if (drawSettingsButton(
         twoPlayersButton,
         "2 Players",
-        twoPlayersSelected
+        game.getPlayerCount() == 2
     )) {
         game.setPlayerMode(
             PlayerMode::TwoPlayers
@@ -465,19 +567,22 @@ void drawSettingsOverlay(
     if (drawSettingsButton(
         fourPlayersButton,
         "4 Players",
-        fourPlayersSelected
+        game.getPlayerCount() == 4
     )) {
         game.setPlayerMode(
             PlayerMode::FourPlayers
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Multiplayer Starting Life
+    // -------------------------------------------------------------------------
     DrawText(
         "Multiplayer Starting Life",
-        150,
-        195,
+        130,
+        190,
         22,
-        LIGHTGRAY
+        inkBlack
     );
 
     const int multiplayerLife =
@@ -485,29 +590,29 @@ void drawSettingsOverlay(
             .multiplayerStartingLife;
 
     const Rectangle multiplayer40 = {
-        150.0F,
-        225.0F,
+        130.0F,
+        220.0F,
         75.0F,
         42.0F
     };
 
     const Rectangle multiplayer30 = {
-        235.0F,
-        225.0F,
+        215.0F,
+        220.0F,
         75.0F,
         42.0F
     };
 
     const Rectangle multiplayer20 = {
-        320.0F,
-        225.0F,
+        300.0F,
+        220.0F,
         75.0F,
         42.0F
     };
 
     const Rectangle multiplayerEdit = {
-        405.0F,
-        225.0F,
+        385.0F,
+        220.0F,
         95.0F,
         42.0F
     };
@@ -549,42 +654,45 @@ void drawSettingsOverlay(
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Two Player Starting Life
+    // -------------------------------------------------------------------------
     DrawText(
         "Two Player Starting Life",
-        150,
-        290,
+        130,
+        285,
         22,
-        LIGHTGRAY
+        inkBlack
     );
 
     const int twoPlayerLife =
         game.getSettings()
             .twoPlayerStartingLife;
 
-    const Rectangle twoPlayer20 = {
-        150.0F,
-        320.0F,
+    const Rectangle twoPlayer40 = {
+        130.0F,
+        315.0F,
         75.0F,
         42.0F
     };
 
     const Rectangle twoPlayer30 = {
-        235.0F,
-        320.0F,
+        215.0F,
+        315.0F,
         75.0F,
         42.0F
     };
 
-    const Rectangle twoPlayer40 = {
-        320.0F,
-        320.0F,
+    const Rectangle twoPlayer20 = {
+        300.0F,
+        315.0F,
         75.0F,
         42.0F
     };
 
     const Rectangle twoPlayerEdit = {
-        405.0F,
-        320.0F,
+        385.0F,
+        315.0F,
         95.0F,
         42.0F
     };
@@ -626,8 +734,11 @@ void drawSettingsOverlay(
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Reset und Done
+    // -------------------------------------------------------------------------
     const Rectangle resetButton = {
-        150.0F,
+        130.0F,
         390.0F,
         170.0F,
         42.0F
@@ -643,7 +754,7 @@ void drawSettingsOverlay(
     }
 
     const Rectangle doneButton = {
-        470.0F,
+        500.0F,
         390.0F,
         170.0F,
         42.0F
@@ -658,22 +769,36 @@ void drawSettingsOverlay(
     }
 }
 
-}
+} // namespace
 
 int main()
 {
+    // -------------------------------------------------------------------------
+    // Desktop-Simulator initialisieren
+    // -------------------------------------------------------------------------
+    //
+    // InitWindow gehört ausschließlich zum Raylib-Simulator.
+    // Auf dem Sticky wird später stattdessen der Displaytreiber initialisiert.
+    //
     InitWindow(
         screenWidth,
         screenHeight,
         "Sticky Lotus Simulator"
     );
 
-    SetTargetFPS(60);
+    SetTargetFPS(30);
 
     GameState game;
     bool settingsOpen = false;
 
     while (!WindowShouldClose()) {
+        // ---------------------------------------------------------------------
+        // Eingabe verarbeiten
+        // ---------------------------------------------------------------------
+        //
+        // Im Simulator verwenden wir die Maus.
+        // Auf dem Sticky wird diese Stelle später durch Touch-Ereignisse ersetzt.
+        //
         if (
             !settingsOpen &&
             IsMouseButtonPressed(
@@ -713,6 +838,7 @@ int main()
             }
         }
 
+        // Reset-Taste nur für den Simulator.
         if (
             !settingsOpen &&
             IsKeyPressed(KEY_R)
@@ -720,22 +846,37 @@ int main()
             game.reset();
         }
 
+        // Escape schließt im Simulator das Overlay.
         if (IsKeyPressed(KEY_ESCAPE)) {
             settingsOpen = false;
         }
 
+        // ---------------------------------------------------------------------
+        // Bildschirm zeichnen
+        // ---------------------------------------------------------------------
+        //
+        // Raylib zeichnet hier weiterhin jedes Frame neu.
+        //
+        // Auf dem Sticky darf später nur dann aktualisiert werden, wenn sich
+        // tatsächlich etwas geändert hat, zum Beispiel:
+        //
+        // - Lebenspunkte geändert
+        // - Menü geöffnet
+        // - Einstellung geändert
+        // - Commander Damage geändert
+        //
         BeginDrawing();
 
-        ClearBackground(RAYWHITE);
-
-        drawPlayers(game);
-        drawMenuButton();
+        ClearBackground(inkWhite);
 
         if (settingsOpen) {
             drawSettingsOverlay(
                 game,
                 settingsOpen
             );
+        } else {
+            drawPlayers(game);
+            drawMenuButton();
         }
 
         EndDrawing();
