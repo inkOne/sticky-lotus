@@ -5,6 +5,7 @@
 #include "sticky_lotus/screens/Screen.h"
 #include "sticky_lotus/screens/ScreenContext.h"
 #include "sticky_lotus/screens/SettingsScreen.h"
+#include "sticky_lotus/screens/PoisonScreen.h"
 
 namespace sticky_lotus::screens {
 
@@ -28,6 +29,7 @@ namespace sticky_lotus::screens {
         GameScreen gameScreen_;
         SettingsScreen settingsScreen_;
         CommanderDamageScreen commanderDamageScreen_;
+        PoisonScreen poisonScreen_;
 
         app::ScreenId previousScreen_ =
             app::ScreenId::Game;

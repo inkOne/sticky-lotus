@@ -8,6 +8,7 @@ add_library(
         src/screens/SettingsScreen.cpp
         src/screens/CommanderDamageScreen.cpp
         src/screens/ScreenManager.cpp
+        src/screens/PoisonScreen.cpp
 )
 
 target_include_directories(

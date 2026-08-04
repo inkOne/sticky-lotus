@@ -31,23 +31,40 @@ void GameScreen::handleInput(
     }
 
     switch (inputFrame.gesture.gesture) {
-        case TouchGesture::Tap:
-            processTap(
-                inputFrame.gesture.endPosition
-            );
-            break;
+    case TouchGesture::Tap:
+        processTap(
+            inputFrame.gesture.endPosition
+        );
+        break;
 
-        case TouchGesture::SwipeLeft:
-        case TouchGesture::SwipeRight:
-            processSwipe(
-                inputFrame.gesture
-            );
-            break;
+    case TouchGesture::SwipeLeft:
+    case TouchGesture::SwipeRight:
+        processSwipe(
+            inputFrame.gesture
+        );
+        break;
 
-        case TouchGesture::SwipeUp:
-        case TouchGesture::SwipeDown:
-        case TouchGesture::None:
-            break;
+    case TouchGesture::SwipeUp: {
+        const std::size_t playerIndex =
+            getPlayerIndex(
+                inputFrame.gesture.startPosition
+            );
+
+        if (
+            playerIndex <
+            context_.game.getPlayerCount()
+        ) {
+            context_.navigation.showPoison(
+                playerIndex
+            );
+        }
+
+        break;
+    }
+
+    case TouchGesture::SwipeDown:
+    case TouchGesture::None:
+        break;
     }
 }
 

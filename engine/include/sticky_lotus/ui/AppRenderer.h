@@ -92,6 +92,23 @@ public:
         std::size_t playerCount
     ) const;
 
+    void drawPoison(
+        const GameState& game,
+        std::size_t playerIndex
+    );
+
+    [[nodiscard]]
+    Rect getPoisonPlusRectangle(
+        std::size_t playerIndex,
+        std::size_t playerCount
+    ) const;
+
+    [[nodiscard]]
+    Rect getPoisonMinusRectangle(
+        std::size_t playerIndex,
+        std::size_t playerCount
+    ) const;
+
 private:
     TableLayout tableLayout_;
     Canvas& canvas_;

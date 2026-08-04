@@ -8,7 +8,8 @@ namespace sticky_lotus::screens {
         : context_(context),
           gameScreen_(context),
           settingsScreen_(context),
-          commanderDamageScreen_(context)
+          commanderDamageScreen_(context),
+          poisonScreen_(context)
     {
         currentScreen().onEnter();
     }
@@ -24,6 +25,9 @@ namespace sticky_lotus::screens {
 
         case app::ScreenId::CommanderDamage:
             return commanderDamageScreen_;
+
+        case app::ScreenId::Poison:
+            return poisonScreen_;
         }
 
         return gameScreen_;
@@ -38,7 +42,6 @@ namespace sticky_lotus::screens {
             return;
         }
 
-        // Den bisherigen Screen verlassen.
         switch (previousScreen_) {
         case app::ScreenId::Game:
             gameScreen_.onExit();
@@ -51,11 +54,14 @@ namespace sticky_lotus::screens {
         case app::ScreenId::CommanderDamage:
             commanderDamageScreen_.onExit();
             break;
+
+        case app::ScreenId::Poison:
+            poisonScreen_.onExit();
+            break;
         }
 
         previousScreen_ = currentScreenId;
 
-        // Den neuen Screen betreten.
         currentScreen().onEnter();
     }
 
@@ -69,10 +75,6 @@ namespace sticky_lotus::screens {
             inputFrame
         );
 
-        /*
-         * Eine Eingabe kann die Navigation verändern.
-         * Deshalb prüfen wir danach erneut auf einen Screenwechsel.
-         */
         processScreenTransition();
     }
 

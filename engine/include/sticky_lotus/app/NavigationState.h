@@ -11,7 +11,8 @@ namespace sticky_lotus::app {
     {
         Game,
         Settings,
-        CommanderDamage
+        CommanderDamage,
+        Poison
     };
 
     /**
@@ -51,6 +52,13 @@ namespace sticky_lotus::app {
         {
             selectedPlayer_ = playerIndex;
             currentScreen_ = ScreenId::CommanderDamage;
+        }
+        void showPoison(
+            const std::size_t playerIndex
+        )
+        {
+            selectedPlayer_ = playerIndex;
+            currentScreen_ = ScreenId::Poison;
         }
 
     private:

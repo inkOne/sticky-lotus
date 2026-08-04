@@ -783,6 +783,62 @@ Rect AppRenderer::getCommanderDamagePlusRectangle(
 }
 
 
+    Rect AppRenderer::getPoisonPlusRectangle(
+        const std::size_t playerIndex,
+        const std::size_t playerCount
+    ) const
+{
+    const Rect playerArea =
+        tableLayout_.playerArea(
+            playerIndex,
+            playerCount
+        );
+
+    constexpr float width = 120.0F;
+    constexpr float height = 55.0F;
+
+    return {
+        playerArea.x +
+            playerArea.width / 2.0F -
+            width / 2.0F,
+
+        playerArea.y + 22.0F,
+
+        width,
+        height
+    };
+}
+
+    Rect AppRenderer::getPoisonMinusRectangle(
+        const std::size_t playerIndex,
+        const std::size_t playerCount
+    ) const
+{
+    const Rect playerArea =
+        tableLayout_.playerArea(
+            playerIndex,
+            playerCount
+        );
+
+    constexpr float width = 120.0F;
+    constexpr float height = 55.0F;
+
+    return {
+        playerArea.x +
+            playerArea.width / 2.0F -
+            width / 2.0F,
+
+        playerArea.y +
+            playerArea.height -
+            height -
+            22.0F,
+
+        width,
+        height
+    };
+}
+
+
 
 void AppRenderer::drawCommanderDamage(
     const GameState& game,
@@ -1008,6 +1064,117 @@ void AppRenderer::drawCommanderDamage(
 
     (void)game;
 }
+void AppRenderer::drawPoison(
+    const GameState& game,
+    const std::size_t selectedPlayer
+)
+{
+    canvas_.clear(Ink::White);
 
+    const std::size_t playerCount =
+        game.getPlayerCount();
+
+    if (selectedPlayer >= playerCount) {
+        return;
+    }
+
+    /*
+     * Zunächst wird der normale Spieltisch gezeichnet.
+     */
+    drawPlayers(game);
+    drawMenuButton();
+
+    const Rect playerArea =
+        tableLayout_.playerArea(
+            selectedPlayer,
+            playerCount
+        );
+
+    const bool upsideDown =
+        tableLayout_.isUpsideDown(
+            selectedPlayer,
+            playerCount
+        );
+
+    const float rotation =
+        upsideDown ? 180.0F : 0.0F;
+
+    const Rect plusArea =
+        getPoisonPlusRectangle(
+            selectedPlayer,
+            playerCount
+        );
+
+    const Rect minusArea =
+        getPoisonMinusRectangle(
+            selectedPlayer,
+            playerCount
+        );
+
+    const Rect poisonValueArea = {
+        playerArea.x + 30.0F,
+        playerArea.y +
+            playerArea.height / 2.0F -
+            42.0F,
+        playerArea.width - 60.0F,
+        84.0F
+    };
+
+    /*
+     * Das ausgewählte Spielerfeld wird für den Poison-Modus
+     * vollständig überzeichnet.
+     */
+    canvas_.fillRect(
+        playerArea,
+        Ink::White
+    );
+
+    canvas_.drawRect(
+        playerArea,
+        3.0F,
+        Ink::Black
+    );
+
+    /*
+     * Vertikale Darstellung:
+     *
+     *     +
+     *    P 3
+     *     -
+     */
+    canvas_.drawText(
+        "+",
+        plusArea,
+        42,
+        Ink::Black,
+        TextAlignment::Center,
+        rotation
+    );
+
+    canvas_.drawText(
+        "P " +
+            std::to_string(
+                game.getPoison(selectedPlayer)
+            ),
+        poisonValueArea,
+        44,
+        Ink::Black,
+        TextAlignment::Center,
+        rotation
+    );
+
+    canvas_.drawText(
+        "-",
+        minusArea,
+        42,
+        game.getPoison(selectedPlayer) > 0
+            ? Ink::Black
+            : Ink::LightGray,
+        TextAlignment::Center,
+        rotation
+    );
+
+    canvas_.invalidate(playerArea);
+}
 
 } // namespace sticky_lotus::ui
