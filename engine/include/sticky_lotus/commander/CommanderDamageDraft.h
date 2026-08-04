@@ -159,7 +159,7 @@ public:
         return editedDamage_[attackingPlayer];
     }
     [[nodiscard]]
-    bool isLethal() const
+ bool isLethal() const
     {
         if (!active_) {
             return false;
@@ -174,6 +174,13 @@ public:
                 continue;
             }
 
+            /*
+             * Commander Damage wird pro gegnerischem Commander
+             * getrennt geprüft.
+             *
+             * Mehrere unterschiedliche Commander werden für die
+             * Niederlage nicht zusammengerechnet.
+             */
             if (editedDamage_[attacker] >= 21) {
                 return true;
             }
@@ -181,6 +188,7 @@ public:
 
         return false;
     }
+
 private:
     bool active_ = false;
 

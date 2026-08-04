@@ -29,19 +29,19 @@ void AppRenderer::drawGame(const GameState& game)
 }
 void AppRenderer::drawPlayers(
         const GameState& game
-
     )
 {
     const std::size_t playerCount =
         game.getPlayerCount();
-    
+
     for (
         std::size_t playerIndex = 0;
         playerIndex < playerCount;
         ++playerIndex
     ) {
         drawPlayer(
-            game.getPlayer(playerIndex),
+            game,
+            playerIndex,
             tableLayout_.playerArea(
                 playerIndex,
                 playerCount
@@ -141,118 +141,19 @@ void AppRenderer::drawPixelSkull(
         }
     }
 }
-   void AppRenderer::drawPlayer(
-    const Player& player,
+
+void AppRenderer::drawPlayer(
+    const GameState& game,
+    const std::size_t playerIndex,
     const Rect& playerArea,
     const bool upsideDown
 )
 {
-    canvas_.fillRect(
-        playerArea,
-        Ink::White
-    );
-
-    canvas_.drawRect(
-        playerArea,
-        2.0F,
-        Ink::Black
-    );
-
-    const bool eliminated =
-        player.status == PlayerStatus::Eliminated;
-
-    const float rotation =
-        upsideDown ? 180.0F : 0.0F;
-
-    if (eliminated) {
-        /*
-         * Graues diagonales Raster.
-         *
-         * Es verwendet nur die vier abstrakten E-Ink-Graustufen
-         * und benötigt weder Transparenz noch Farbmischung.
-         */
-        constexpr float hatchSpacing = 12.0F;
-
-        for (
-            float offset = -playerArea.height;
-            offset < playerArea.width;
-            offset += hatchSpacing
-        ) {
-            canvas_.drawLine(
-                {
-                    playerArea.x + offset,
-                    playerArea.y + playerArea.height
-                },
-                {
-                    playerArea.x +
-                        offset +
-                        playerArea.height,
-                    playerArea.y
-                },
-                1.0F,
-                Ink::LightGray
-            );
-        }
-
-        drawPixelSkull(
-            {
-                playerArea.x +
-                    playerArea.width / 2.0F -
-                    55.0F,
-
-                playerArea.y +
-                    playerArea.height / 2.0F -
-                    55.0F,
-
-                110.0F,
-                110.0F
-            },
-            rotation
-        );
-
-        canvas_.drawText(
-            "ELIMINATED",
-            {
-                playerArea.x + 20.0F,
-                playerArea.y +
-                    playerArea.height -
-                    55.0F,
-                playerArea.width - 40.0F,
-                35.0F
-            },
-            18,
-            Ink::Black,
-            TextAlignment::Center,
-            rotation
-        );
-
-        return;
-    }
-
-    /*
-     * Den Spielerindex anhand seines Rechtecks ermitteln.
-     *
-     * Langfristig übergeben wir den Index besser direkt an
-     * drawPlayer(). Für den aktuellen Aufbau bleibt diese
-     * Berechnung kompatibel.
-     */
-    std::size_t playerIndex = 0;
-
-    if (playerArea.x >= screenWidth / 2.0F) {
-        playerIndex += 1;
-    }
-
-    if (
-        playerArea.y >= screenHeight / 2.0F &&
-        playerArea.height < screenHeight
-    ) {
-        playerIndex += 2;
-    }
+    const Player& player =
+        game.getPlayer(playerIndex);
 
     const std::size_t playerCount =
-        playerArea.height >= screenHeight
-            ? 2
-            : 4;
+        game.getPlayerCount();
 
     const Rect minusArea =
         tableLayout_.minusArea(
@@ -272,32 +173,172 @@ void AppRenderer::drawPixelSkull(
             playerCount
         );
 
-    canvas_.drawText(
-        std::to_string(player.life),
-        lifeArea,
-        90,
-        Ink::Black,
-        TextAlignment::Center,
+
+    const float rotation =
+        upsideDown ? 180.0F : 0.0F;
+
+    const EliminationReason eliminationReason =
+        game.getEliminationReason(playerIndex);
+
+    const bool eliminated =
+        eliminationReason !=
+            EliminationReason::None;
+
+    /*
+     * Grundfläche und Umrandung des Spielerfeldes.
+     */
+    canvas_.fillRect(
+        playerArea,
+        eliminated
+            ? Ink::LightGray
+            : Ink::White
+    );
+
+    canvas_.drawRect(
+        playerArea,
+        2.0F,
+        Ink::Black
+    );
+
+    /*
+     * Normale Anzeige eines aktiven Spielers.
+     */
+    if (!eliminated) {
+        canvas_.drawText(
+            std::to_string(player.life),
+            lifeArea,
+            90,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
+
+        canvas_.drawText(
+            "-",
+            minusArea,
+            42,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
+        );
+
+        canvas_.drawText(
+            "+",
+            plusArea,
+            42,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
+        );
+
+        return;
+    }
+
+    /*
+     * Der Totenkopf sitzt etwas oberhalb der Mitte,
+     * damit darunter noch der Grund der Niederlage
+     * angezeigt werden kann.
+     */
+    const Rect skullArea = {
+        playerArea.x +
+            playerArea.width / 2.0F -
+            42.0F,
+
+        playerArea.y +
+            playerArea.height / 2.0F -
+            75.0F,
+
+        84.0F,
+        84.0F
+    };
+
+    drawPixelSkull(
+        skullArea,
         rotation
     );
 
-    canvas_.drawText(
-        "-",
-        minusArea,
-        42,
-        Ink::DarkGray,
-        TextAlignment::Center,
-        rotation
-    );
+    /*
+     * Niederlage durch Commander Damage:
+     * Die verbleibenden Lebenspunkte werden bewusst
+     * nicht angezeigt.
+     */
+    switch (eliminationReason) {
+    case EliminationReason::CommanderDamage:
+        /*
+         * Die verbleibenden Lebenspunkte werden bei einer
+         * Niederlage durch Commander Damage nicht angezeigt.
+         */
+        canvas_.drawText(
+            "COMMANDER",
+            {
+                playerArea.x + 20.0F,
+                playerArea.y +
+                    playerArea.height / 2.0F +
+                    12.0F,
+                playerArea.width - 40.0F,
+                30.0F
+            },
+            20,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
 
-    canvas_.drawText(
-        "+",
-        plusArea,
-        42,
-        Ink::DarkGray,
-        TextAlignment::Center,
-        rotation
-    );
+        canvas_.drawText(
+            "DAMAGE",
+            {
+                playerArea.x + 20.0F,
+                playerArea.y +
+                    playerArea.height / 2.0F +
+                    43.0F,
+                playerArea.width - 40.0F,
+                30.0F
+            },
+            20,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
+        break;
+
+    case EliminationReason::Life:
+        canvas_.drawText(
+            "0",
+            {
+                playerArea.x + 20.0F,
+                playerArea.y +
+                    playerArea.height / 2.0F +
+                    20.0F,
+                playerArea.width - 40.0F,
+                55.0F
+            },
+            40,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
+        break;
+    case EliminationReason::Poison:
+        canvas_.drawText(
+            "POISONED",
+            {
+                playerArea.x + 20.0F,
+                playerArea.y +
+                    playerArea.height / 2.0F +
+                    25.0F,
+                playerArea.width - 40.0F,
+                40.0F
+            },
+            22,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
+        break;
+
+    case EliminationReason::None:
+        break;
+    }
 }
 
 Rect AppRenderer::getMenuButtonRectangle() const
@@ -555,6 +596,7 @@ void AppRenderer::drawSettings(
         false
     );
 
+
     canvas_.invalidate(panel);
 }
 
@@ -668,7 +710,9 @@ Rect AppRenderer::getTwoPlayerEditRectangle() const
     };
 }
 
-Rect AppRenderer::getResetButtonRectangle() const
+
+
+    Rect AppRenderer::getResetButtonRectangle() const
 {
     return {
         130.0F,
@@ -678,7 +722,7 @@ Rect AppRenderer::getResetButtonRectangle() const
     };
 }
 
-Rect AppRenderer::getDoneButtonRectangle() const
+    Rect AppRenderer::getDoneButtonRectangle() const
 {
     return {
         500.0F,
@@ -687,6 +731,8 @@ Rect AppRenderer::getDoneButtonRectangle() const
         42.0F
     };
 }
+
+
     std::size_t AppRenderer::getCommanderDamageRowIndex(
         const std::size_t sourcePlayer,
         const std::size_t targetPlayer,
@@ -713,7 +759,8 @@ Rect AppRenderer::getDoneButtonRectangle() const
 
     return visibleRow;
 }
-    Rect AppRenderer::getCommanderDamageMinusRectangle(
+
+Rect AppRenderer::getCommanderDamageMinusRectangle(
         const std::size_t attackingPlayer,
         const std::size_t playerCount
     ) const
@@ -724,7 +771,7 @@ Rect AppRenderer::getDoneButtonRectangle() const
     );
 }
 
-    Rect AppRenderer::getCommanderDamagePlusRectangle(
+Rect AppRenderer::getCommanderDamagePlusRectangle(
         const std::size_t attackingPlayer,
         const std::size_t playerCount
     ) const
@@ -734,6 +781,9 @@ Rect AppRenderer::getDoneButtonRectangle() const
         playerCount
     );
 }
+
+
+
 void AppRenderer::drawCommanderDamage(
     const GameState& game,
     const commander::CommanderDamageDraft& draft

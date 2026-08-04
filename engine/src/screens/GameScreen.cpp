@@ -74,14 +74,6 @@ void GameScreen::processTap(
         return;
     }
 
-    if (
-        context_.game.isPlayerEliminated(
-            playerIndex
-        )
-    ) {
-        return;
-    }
-
     context_.game.changeLife(
         playerIndex,
         getLifeChange(position)

@@ -99,7 +99,8 @@ private:
     void drawPlayers(const GameState& game);
 
     void drawPlayer(
-        const Player& player,
+        const GameState& game,
+        std::size_t playerIndex,
         const Rect& playerArea,
         bool upsideDown
     );

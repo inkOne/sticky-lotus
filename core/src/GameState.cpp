@@ -42,9 +42,11 @@ void GameState::changeLife(
     if (playerIndex >= getPlayerCount()) {
         return;
     }
-
-    players_[playerIndex].life += amount;
-    updatePlayerStatus(playerIndex);
+    players_[playerIndex].life =
+        std::max(
+            0,
+            players_[playerIndex].life + amount
+        );
 }
 
 void GameState::setPlayerMode(const PlayerMode mode)
@@ -85,7 +87,7 @@ void GameState::reset()
         settings_.startingLife();
     for (Player& player : players_) {
         player.life = startingLife;
-        player.status = PlayerStatus::Active;
+        player.poison = 0;
     }
     resetCommanderDamage();
 }
@@ -103,17 +105,23 @@ void GameState::changeCommanderDamage(
     ) {
         return;
     }
-
-    int& damage = commanderDamage_[attackerIndex][defenderIndex];
+    int& damage =
+        commanderDamage_[attackerIndex][defenderIndex];
 
     const int previousDamage = damage;
-    damage = std::max(0, damage + amount);
+    damage = std::max(
+        0,
+        damage + amount
+    );
 
-    const int actualChange = damage - previousDamage;
-
-    // Commander Damage verändert gleichzeitig die Lebenspunkte.
-    players_[defenderIndex].life -= actualChange;
-    updatePlayerStatus(defenderIndex);
+    const int actualChange =
+        damage - previousDamage;
+    players_[defenderIndex].life =
+        std::max(
+            0,
+            players_[defenderIndex].life -
+                actualChange
+        );
 }
 
 int GameState::getCommanderDamage(
@@ -137,55 +145,68 @@ void GameState::resetCommanderDamage()
         attackerValues.fill(0);
     }
 }
-bool GameState::isPlayerEliminated(
+
+EliminationReason GameState::getEliminationReason(
     const std::size_t playerIndex
 ) const
 {
     if (playerIndex >= getPlayerCount()) {
-        return false;
+        return EliminationReason::None;
     }
-
-    return players_[playerIndex].status ==
-        PlayerStatus::Eliminated;
+    for (
+        std::size_t attackingPlayer = 0;
+        attackingPlayer < getPlayerCount();
+        ++attackingPlayer
+    ) {
+        if (attackingPlayer == playerIndex) {
+            continue;
+        }
+        if (
+            commanderDamage_[attackingPlayer][playerIndex] >= 21
+        ) {
+            return EliminationReason::CommanderDamage;
+        }
+    }
+    if (players_[playerIndex].poison >= 10) {
+        return EliminationReason::Poison;
+    }
+    if (players_[playerIndex].life == 0) {
+        return EliminationReason::Life;
+    }
+    return EliminationReason::None;
 }
 
-void GameState::updatePlayerStatus(
+bool GameState::isPlayerEliminated(
     const std::size_t playerIndex
+) const
+{
+    return getEliminationReason(playerIndex) !=
+        EliminationReason::None;
+}
+
+void GameState::changePoison(
+    const std::size_t playerIndex,
+    const int amount
 )
 {
     if (playerIndex >= getPlayerCount()) {
         return;
     }
 
-    bool commanderLoss = false;
+    players_[playerIndex].poison =
+        std::max(
+            0,
+            players_[playerIndex].poison + amount
+        );
+}
 
-    /*
-     * Ein Spieler verliert durch Commander Damage,
-     * wenn ein einzelner Commander mindestens
-     * 21 Kampfschaden verursacht hat.
-     */
-    for (
-        std::size_t attacker = 0;
-        attacker < getPlayerCount();
-        ++attacker
-    ) {
-        if (attacker == playerIndex) {
-            continue;
-        }
-
-        if (
-            commanderDamage_[attacker][playerIndex] >= 21
-        ) {
-            commanderLoss = true;
-            break;
-        }
+int GameState::getPoison(
+    const std::size_t playerIndex
+) const
+{
+    if (playerIndex >= getPlayerCount()) {
+        return 0;
     }
 
-    const bool lifeLoss =
-        players_[playerIndex].life <= 0;
-
-    players_[playerIndex].status =
-        commanderLoss || lifeLoss
-            ? PlayerStatus::Eliminated
-            : PlayerStatus::Active;
+    return players_[playerIndex].poison;
 }

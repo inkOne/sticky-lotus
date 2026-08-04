@@ -138,7 +138,6 @@ void SettingsScreen::processTap(
         return;
     }
 
-    // Eigener Zwei-Spieler-Wert folgt später.
     if (
         renderer
             .getTwoPlayerEditRectangle()
@@ -146,6 +145,7 @@ void SettingsScreen::processTap(
     ) {
         return;
     }
+
 
     if (
         renderer
@@ -156,14 +156,17 @@ void SettingsScreen::processTap(
         context_.navigation.showGame();
         return;
     }
-
     if (
         renderer
             .getDoneButtonRectangle()
             .contains(position)
     ) {
-        context_.navigation.showGame();
+            context_.navigation.showGame();
+            return;
+
     }
+
+
 }
 
 void SettingsScreen::draw()

@@ -125,4 +125,6 @@ Rect TableLayout::counterArea(
     };
 }
 
+
+
 } // namespace sticky_lotus::ui

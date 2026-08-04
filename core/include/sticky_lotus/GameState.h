@@ -6,17 +6,23 @@
 #include <cstddef>
 #include <string>
 
-enum class PlayerStatus
+
+/**
+ * Grund, weshalb ein Spieler aktuell ausgeschieden ist.
+ */
+enum class EliminationReason
 {
-    Active,
-    Eliminated
+    None,
+    Life,
+    CommanderDamage,
+    Poison
 };
 
 struct Player
 {
     std::string name;
     int life = 40;
-    PlayerStatus status = PlayerStatus::Active;
+    int poison = 0;
 };
 
 class GameState {
@@ -34,6 +40,18 @@ public:
     [[nodiscard]]
     const GameSettings& getSettings() const;
 
+    /**
+     * Ermittelt den aktuellen Ausscheidungsgrund eines Spielers.
+     */
+    [[nodiscard]]
+    EliminationReason getEliminationReason(
+        std::size_t playerIndex
+    ) const;
+
+    /**
+     * Komfortfunktion für Stellen, an denen nur relevant ist,
+     * ob ein Spieler ausgeschieden ist.
+     */
     [[nodiscard]]
     bool isPlayerEliminated(
         std::size_t playerIndex
@@ -59,6 +77,16 @@ public:
         std::size_t defenderIndex
     ) const;
 
+    void changePoison(
+    std::size_t playerIndex,
+    int amount
+    );
+
+    [[nodiscard]]
+    int getPoison(
+        std::size_t playerIndex
+    ) const;
+
 private:
     GameSettings settings_;
 
@@ -73,7 +101,4 @@ private:
     > commanderDamage_{};
 
     void resetCommanderDamage();
-    void updatePlayerStatus(
-    std::size_t playerIndex
-);
 };
