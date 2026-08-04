@@ -1,0 +1,27 @@
+#pragma once
+
+#include "sticky_lotus/screens/Screen.h"
+#include "sticky_lotus/screens/ScreenContext.h"
+
+namespace sticky_lotus::screens {
+
+    class PoisonScreen final : public Screen
+    {
+    public:
+        explicit PoisonScreen(
+            ScreenContext context
+        );
+
+        void handleInput(
+            const input::InputFrame& inputFrame
+        ) override;
+
+        void draw() override;
+
+    private:
+        ScreenContext context_;
+
+        void processTap(ui::Point position);
+    };
+
+} // namespace sticky_lotus::screens
