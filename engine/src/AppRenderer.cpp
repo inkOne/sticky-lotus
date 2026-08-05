@@ -54,17 +54,11 @@ void AppRenderer::drawPlayers(
     }
 }
 
-void AppRenderer::drawPixelSkull(
-    const Rect& area,
-    const float rotationDegrees
-)
+    void AppRenderer::drawPixelSkull(
+        const Rect& area,
+        const float rotationDegrees
+    )
 {
-    /*
-     * Pixelart-Totenkopf aus einem 9 × 9 Raster.
-     *
-     * Dadurch benötigen wir keine Bilddatei und können
-     * dasselbe Symbol später auch auf dem Sticky zeichnen.
-     */
     static constexpr int skull[9][9] = {
         {0, 0, 1, 1, 1, 1, 1, 0, 0},
         {0, 1, 1, 1, 1, 1, 1, 1, 0},
@@ -77,48 +71,122 @@ void AppRenderer::drawPixelSkull(
         {0, 0, 1, 0, 1, 0, 1, 0, 0}
     };
 
-    constexpr float gridSize = 9.0F;
+    drawPixelIcon(
+        &skull[0][0],
+        9,
+        area,
+        rotationDegrees,
+        Ink::Black
+    );
+}
 
+    void AppRenderer::drawPixelPoison(
+        const Rect& area,
+        const float rotationDegrees
+    )
+{
+    static constexpr int poison[8][8] = {
+        {0,0,0,1,0,0,0,0},
+        {0,0,0,1,0,0,0,0},
+        {0,1,1,1,1,1,0,0},
+        {1,0,0,1,0,0,1,0},
+        {1,0,0,1,0,0,1,0},
+        {0,1,1,1,1,1,0,0},
+        {0,0,0,1,0,0,0,0},
+        {0,0,0,1,0,0,0,0}
+    };
+
+    drawPixelIcon(
+        &poison[0][0],
+        8,
+        area,
+        rotationDegrees,
+        Ink::Black
+    );
+}
+void AppRenderer::drawPixelIcon(
+    const int* pixels,
+    const int gridSize,
+    const Rect& area,
+    const float rotationDegrees,
+    const Ink ink
+)
+{
+    if (
+        pixels == nullptr ||
+        gridSize <= 0 ||
+        area.width <= 0.0F ||
+        area.height <= 0.0F
+    ) {
+        return;
+    }
+
+    const float gridSizeAsFloat =
+        static_cast<float>(gridSize);
+
+    /*
+     * Die Pixel werden so groß gewählt, dass das komplette
+     * quadratische Raster in den Zielbereich passt.
+     */
     const float pixelSize =
         std::min(
-            area.width / gridSize,
-            area.height / gridSize
+            area.width / gridSizeAsFloat,
+            area.height / gridSizeAsFloat
         );
 
-    const float drawingWidth =
-        pixelSize * gridSize;
+    /*
+     * Tatsächliche Größe des gezeichneten Symbols.
+     *
+     * Falls area breiter als hoch ist oder umgekehrt,
+     * wird das Symbol trotzdem quadratisch dargestellt.
+     */
+    const float drawingSize =
+        pixelSize * gridSizeAsFloat;
 
-    const float drawingHeight =
-        pixelSize * gridSize;
-
+    /*
+     * Symbol horizontal und vertikal im Zielbereich zentrieren.
+     */
     const float startX =
         area.x +
-        (area.width - drawingWidth) / 2.0F;
+        (area.width - drawingSize) / 2.0F;
 
     const float startY =
         area.y +
-        (area.height - drawingHeight) / 2.0F;
+        (area.height - drawingSize) / 2.0F;
 
-    /*
-     * Bei 180 Grad werden die Rasterkoordinaten umgekehrt.
-     */
     const bool upsideDown =
         rotationDegrees == 180.0F;
 
-    for (int row = 0; row < 9; ++row) {
-        for (int column = 0; column < 9; ++column) {
-            if (skull[row][column] == 0) {
+    for (int row = 0; row < gridSize; ++row) {
+        for (
+            int column = 0;
+            column < gridSize;
+            ++column
+        ) {
+            /*
+             * Eine zweidimensionale Matrix liegt im Speicher
+             * zeilenweise hintereinander.
+             *
+             * Index:
+             * row * gridSize + column
+             */
+            const int pixel =
+                pixels[
+                    row * gridSize + column
+                ];
+
+            if (pixel == 0) {
                 continue;
             }
 
             const int displayRow =
                 upsideDown
-                    ? 8 - row
+                    ? gridSize - 1 - row
                     : row;
 
             const int displayColumn =
                 upsideDown
-                    ? 8 - column
+                    ? gridSize - 1 - column
                     : column;
 
             canvas_.fillRect(
@@ -136,7 +204,7 @@ void AppRenderer::drawPixelSkull(
                     pixelSize,
                     pixelSize
                 },
-                Ink::Black
+                ink
             );
         }
     }
@@ -1080,6 +1148,8 @@ void AppRenderer::drawPoison(
 
     /*
      * Zunächst wird der normale Spieltisch gezeichnet.
+     * Anschließend übermalen wir nur das ausgewählte Feld
+     * mit dem Poison-Counter.
      */
     drawPlayers(game);
     drawMenuButton();
@@ -1099,30 +1169,9 @@ void AppRenderer::drawPoison(
     const float rotation =
         upsideDown ? 180.0F : 0.0F;
 
-    const Rect plusArea =
-        getPoisonPlusRectangle(
-            selectedPlayer,
-            playerCount
-        );
-
-    const Rect minusArea =
-        getPoisonMinusRectangle(
-            selectedPlayer,
-            playerCount
-        );
-
-    const Rect poisonValueArea = {
-        playerArea.x + 30.0F,
-        playerArea.y +
-            playerArea.height / 2.0F -
-            42.0F,
-        playerArea.width - 60.0F,
-        84.0F
-    };
-
     /*
-     * Das ausgewählte Spielerfeld wird für den Poison-Modus
-     * vollständig überzeichnet.
+     * Das ausgewählte Spielerfeld vollständig leeren,
+     * damit die Lebensanzeige darunter nicht sichtbar bleibt.
      */
     canvas_.fillRect(
         playerArea,
@@ -1131,16 +1180,45 @@ void AppRenderer::drawPoison(
 
     canvas_.drawRect(
         playerArea,
-        3.0F,
+        2.0F,
         Ink::Black
     );
 
     /*
-     * Vertikale Darstellung:
+     * Die obere und untere Fläche werden abhängig von der
+     * Orientierung vertauscht.
+     *
+     * Dadurch sieht jeder Spieler aus seiner Blickrichtung:
      *
      *     +
-     *    P 3
+     *   Symbol
+     *     Zahl
      *     -
+     */
+    const Rect physicalTopArea =
+        getPoisonPlusRectangle(
+            selectedPlayer,
+            playerCount
+        );
+
+    const Rect physicalBottomArea =
+        getPoisonMinusRectangle(
+            selectedPlayer,
+            playerCount
+        );
+
+    const Rect plusArea =
+        upsideDown
+            ? physicalBottomArea
+            : physicalTopArea;
+
+    const Rect minusArea =
+        upsideDown
+            ? physicalTopArea
+            : physicalBottomArea;
+
+    /*
+     * Plus-Button.
      */
     canvas_.drawText(
         "+",
@@ -1151,18 +1229,56 @@ void AppRenderer::drawPoison(
         rotation
     );
 
+    /*
+     * Poison-Symbol mittig oberhalb der Zahl.
+     */
+    const Rect poisonIconArea = {
+        playerArea.x +
+            playerArea.width / 2.0F -
+            16.0F,
+
+        playerArea.y +
+            playerArea.height / 2.0F -
+            45.0F,
+
+        32.0F,
+        32.0F
+    };
+
+    drawPixelPoison(
+        poisonIconArea,
+        rotation
+    );
+
+    /*
+     * Aktueller Poison-Wert unterhalb des Symbols.
+     */
+    const Rect poisonNumberArea = {
+        playerArea.x + 20.0F,
+
+        playerArea.y +
+            playerArea.height / 2.0F +
+            0.0F,
+
+        playerArea.width - 40.0F,
+        48.0F
+    };
+
     canvas_.drawText(
-        "P " +
-            std::to_string(
-                game.getPoison(selectedPlayer)
-            ),
-        poisonValueArea,
-        44,
+        std::to_string(
+            game.getPoison(selectedPlayer)
+        ),
+        poisonNumberArea,
+        36,
         Ink::Black,
         TextAlignment::Center,
         rotation
     );
 
+    /*
+     * Minus bleibt sichtbar, wird bei 0 aber heller dargestellt.
+     * GameState verhindert zusätzlich Werte unter 0.
+     */
     canvas_.drawText(
         "-",
         minusArea,

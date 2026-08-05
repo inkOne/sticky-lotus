@@ -123,9 +123,22 @@ private:
     );
 
     void drawPixelSkull(
-    const Rect& area,
-    float rotationDegrees
-);
+     const Rect& area,
+     float rotationDegrees
+ );
+
+    void drawPixelPoison(
+        const Rect& area,
+        float rotationDegrees
+    );
+
+    void drawPixelIcon(
+        const int* pixels,
+        int gridSize,
+        const Rect& area,
+        float rotationDegrees,
+        Ink ink = Ink::Black
+    );
     void drawMenuButton();
 
     void drawSettingsButton(
