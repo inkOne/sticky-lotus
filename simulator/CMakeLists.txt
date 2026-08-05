@@ -30,3 +30,18 @@ target_compile_options(
         -Wextra
         -Wpedantic
 )
+
+add_custom_command(
+        TARGET sticky-lotus-simulator
+        POST_BUILD
+
+        COMMAND
+        ${CMAKE_COMMAND} -E copy_directory
+
+        ${CMAKE_SOURCE_DIR}/assets
+
+        $<TARGET_FILE_DIR:sticky-lotus-simulator>/assets
+
+        COMMENT
+        "Copying Sticky Lotus assets"
+)

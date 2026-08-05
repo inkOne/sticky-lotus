@@ -7,6 +7,7 @@
 #include "sticky_lotus/ui/AppRenderer.h"
 #include "sticky_lotus/ui/Canvas.h"
 #include "sticky_lotus/commander/CommanderDamageDraft.h"
+#include "sticky_lotus/ui/ImageRenderer.h"
 
 namespace sticky_lotus::app {
 
@@ -18,6 +19,7 @@ namespace sticky_lotus::app {
     public:
         Application(
             ui::Canvas& canvas,
+            ui::ImageRenderer& imageRenderer,
             input::InputProvider& input
         );
 

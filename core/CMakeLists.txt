@@ -8,6 +8,7 @@ add_library(
         sticky-lotus-core
         STATIC
         src/GameState.cpp
+        src/DeathMessageGenerator.cpp
 )
 
 target_include_directories(

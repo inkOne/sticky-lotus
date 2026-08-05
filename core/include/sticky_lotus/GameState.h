@@ -1,38 +1,36 @@
 #pragma once
 
+#include "sticky_lotus/EliminationReason.h"
 #include "sticky_lotus/GameSettings.h"
 
 #include <array>
 #include <cstddef>
 #include <string>
 
-
-/**
- * Grund, weshalb ein Spieler aktuell ausgeschieden ist.
- */
-enum class EliminationReason
-{
-    None,
-    Life,
-    CommanderDamage,
-    Poison
-};
+namespace sticky_lotus {
 
 struct Player
 {
     std::string name;
     int life = 40;
     int poison = 0;
+    std::string deathMessage;
+
+    EliminationReason lastEliminationReason =
+        EliminationReason::None;
 };
 
-class GameState {
+class GameState
+{
 public:
     static constexpr std::size_t maximumPlayerCount = 4;
 
     GameState();
 
     [[nodiscard]]
-    const Player& getPlayer(std::size_t index) const;
+    const Player& getPlayer(
+        std::size_t index
+    ) const;
 
     [[nodiscard]]
     std::size_t getPlayerCount() const;
@@ -40,27 +38,25 @@ public:
     [[nodiscard]]
     const GameSettings& getSettings() const;
 
-    /**
-     * Ermittelt den aktuellen Ausscheidungsgrund eines Spielers.
-     */
     [[nodiscard]]
     EliminationReason getEliminationReason(
         std::size_t playerIndex
     ) const;
 
-    /**
-     * Komfortfunktion für Stellen, an denen nur relevant ist,
-     * ob ein Spieler ausgeschieden ist.
-     */
     [[nodiscard]]
     bool isPlayerEliminated(
         std::size_t playerIndex
     ) const;
 
-    void changeLife(std::size_t playerIndex, int amount);
+    void changeLife(
+        std::size_t playerIndex,
+        int amount
+    );
 
     void setPlayerMode(PlayerMode mode);
+
     void setMultiplayerStartingLife(int life);
+
     void setTwoPlayerStartingLife(int life);
 
     void reset();
@@ -78,8 +74,8 @@ public:
     ) const;
 
     void changePoison(
-    std::size_t playerIndex,
-    int amount
+        std::size_t playerIndex,
+        int amount
     );
 
     [[nodiscard]]
@@ -90,15 +86,28 @@ public:
 private:
     GameSettings settings_;
 
-    std::array<Player, maximumPlayerCount> players_;
-
-
-    // Erster Index: angreifender Commander
-    // Zweiter Index: Spieler, der Schaden erhalten hat
     std::array<
-        std::array<int, maximumPlayerCount>,
+        Player,
+        maximumPlayerCount
+    > players_;
+
+    /*
+     * Erster Index: angreifender Commander.
+     * Zweiter Index: Spieler, der Schaden erhalten hat.
+     */
+    std::array<
+        std::array<
+            int,
+            maximumPlayerCount
+        >,
         maximumPlayerCount
     > commanderDamage_{};
 
     void resetCommanderDamage();
+
+    void updateEliminationState(
+        std::size_t playerIndex
+    );
 };
+
+} // namespace sticky_lotus

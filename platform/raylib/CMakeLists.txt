@@ -6,6 +6,7 @@ add_library(
         STATIC
         src/RaylibCanvas.cpp
         src/RaylibInputProvider.cpp
+        src/RaylibImageRenderer.cpp
 )
 
 target_include_directories(

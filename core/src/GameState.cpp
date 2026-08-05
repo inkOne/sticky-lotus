@@ -1,19 +1,34 @@
 #include "sticky_lotus/GameState.h"
+#include "sticky_lotus/DeathMessageGenerator.h"
 
 #include <algorithm>
 #include <stdexcept>
+namespace sticky_lotus{
+
+    Player createPlayer(const char* name)
+    {
+        return Player{
+            .name = name,
+            .life = 40,
+            .poison = 0,
+            .deathMessage = "",
+            .lastEliminationReason =
+                EliminationReason::None
+        };
+    }
+
+
 
 GameState::GameState()
-{
-    players_ = {{
-        {"Player 1", 40},
-        {"Player 2", 40},
-        {"Player 3", 40},
-        {"Player 4", 40}
-    }};
-
-    reset();
+    : players_{
+    createPlayer("Player 1"),
+    createPlayer("Player 2"),
+    createPlayer("Player 3"),
+    createPlayer("Player 4")
 }
+{
+}
+
 
 const Player& GameState::getPlayer(const std::size_t index) const
 {
@@ -47,6 +62,7 @@ void GameState::changeLife(
             0,
             players_[playerIndex].life + amount
         );
+    updateEliminationState(playerIndex);
 }
 
 void GameState::setPlayerMode(const PlayerMode mode)
@@ -88,6 +104,9 @@ void GameState::reset()
     for (Player& player : players_) {
         player.life = startingLife;
         player.poison = 0;
+        player.deathMessage.clear();
+        player.lastEliminationReason =
+            EliminationReason::None;
     }
     resetCommanderDamage();
 }
@@ -122,6 +141,7 @@ void GameState::changeCommanderDamage(
             players_[defenderIndex].life -
                 actualChange
         );
+    updateEliminationState(defenderIndex);
 }
 
 int GameState::getCommanderDamage(
@@ -198,6 +218,7 @@ void GameState::changePoison(
             0,
             players_[playerIndex].poison + amount
         );
+    updateEliminationState(playerIndex);
 }
 
 int GameState::getPoison(
@@ -209,4 +230,51 @@ int GameState::getPoison(
     }
 
     return players_[playerIndex].poison;
+}
+
+void GameState::updateEliminationState(
+    const std::size_t playerIndex
+)
+{
+    if (playerIndex >= getPlayerCount()) {
+        return;
+    }
+
+    Player& player =
+        players_[playerIndex];
+
+    const EliminationReason currentReason =
+        getEliminationReason(playerIndex);
+
+    /*
+     * Spieler ist wieder aktiv.
+     *
+     * Dadurch kann beim nächsten Ausscheiden
+     * ein neuer Spruch ausgewählt werden.
+     */
+    if (currentReason == EliminationReason::None) {
+        player.lastEliminationReason =
+            EliminationReason::None;
+
+        player.deathMessage.clear();
+        return;
+    }
+
+    /*
+     * Nur beim Übergang von aktiv zu ausgeschieden
+     * wird eine neue Nachricht ausgewählt.
+     */
+    if (
+        player.lastEliminationReason ==
+        EliminationReason::None
+    ) {
+        player.deathMessage =
+            DeathMessageGenerator::randomMessage(
+                currentReason
+            );
+    }
+
+    player.lastEliminationReason =
+        currentReason;
+}
 }

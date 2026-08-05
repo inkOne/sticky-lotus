@@ -6,6 +6,7 @@
 #include <cstddef>
 #include "sticky_lotus/commander/CommanderDamageDraft.h"
 #include "sticky_lotus/ui/TableLayout.h"
+#include "sticky_lotus/ui/ImageRenderer.h"
 
 namespace sticky_lotus::ui {
 
@@ -21,7 +22,10 @@ public:
     static constexpr int screenWidth = 800;
     static constexpr int screenHeight = 480;
 
-    explicit AppRenderer(Canvas& canvas);
+    AppRenderer(
+        Canvas& canvas,
+        ImageRenderer& imageRenderer
+    );
 
     /**
      * Zeichnet die normale Spielansicht.
@@ -110,8 +114,9 @@ public:
     ) const;
 
 private:
-    TableLayout tableLayout_;
     Canvas& canvas_;
+    ImageRenderer& imageRenderer_;
+    TableLayout tableLayout_;
 
     void drawPlayers(const GameState& game);
 
