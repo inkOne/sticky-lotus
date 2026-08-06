@@ -612,22 +612,24 @@ namespace sticky_lotus::ui
                 .twoPlayerStartingLife;
 
         drawSettingsButton(
+               getTwoPlayer40Rectangle(),
+               "40",
+               twoPlayerLife == 40
+           );
+        drawSettingsButton(
+          getTwoPlayer30Rectangle(),
+          "30",
+          twoPlayerLife == 30
+      );
+        drawSettingsButton(
             getTwoPlayer20Rectangle(),
             "20",
             twoPlayerLife == 20
         );
 
-        drawSettingsButton(
-            getTwoPlayer30Rectangle(),
-            "30",
-            twoPlayerLife == 30
-        );
 
-        drawSettingsButton(
-            getTwoPlayer40Rectangle(),
-            "40",
-            twoPlayerLife == 40
-        );
+
+
 
         /*drawSettingsButton(
             getTwoPlayerEditRectangle(),

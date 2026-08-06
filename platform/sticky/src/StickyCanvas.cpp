@@ -360,21 +360,51 @@ void StickyCanvas::invalidate(const Rect& area)
     (void)area;
     dirty_ = true;
 }
-
     void StickyCanvas::flush()
 {
     if (!dirty_) {
-        ESP_LOGW(
-            logTag,
-            "Framebuffer is not marked dirty"
-        );
+        return;
+    }
 
+    /*
+     * Der Renderer hat einen neuen vollständigen Frame
+     * erzeugt. Er wird aber noch nicht sofort ans Panel
+     * übertragen.
+     *
+     * Jede weitere Eingabe verschiebt den Refresh erneut.
+     */
+    refreshPending_ = true;
+
+    lastFrameChangeTimeUs_ =
+        esp_timer_get_time();
+
+    /*
+     * Die Änderungen befinden sich bereits im Framebuffer.
+     * dirty_ beschreibt hier nur, ob der aktuelle Renderdurchlauf
+     * neue Inhalte erzeugt hat.
+     */
+    dirty_ = false;
+}
+    void StickyCanvas::serviceRefresh()
+{
+    if (!refreshPending_) {
+        return;
+    }
+
+    const std::int64_t currentTimeUs =
+        esp_timer_get_time();
+
+    const std::int64_t quietTimeUs =
+        currentTimeUs -
+        lastFrameChangeTimeUs_;
+
+    if (quietTimeUs < refreshDelayUs) {
         return;
     }
 
     ESP_LOGI(
         logTag,
-        "Refreshing Sticky Lotus framebuffer"
+        "Refreshing coalesced Sticky Lotus framebuffer"
     );
 
     const esp_err_t result =
@@ -387,15 +417,49 @@ void StickyCanvas::invalidate(const Rect& area)
             esp_err_to_name(result)
         );
 
+        /*
+         * Bei einem Fehler bleibt der Refresh vorgemerkt,
+         * damit der nächste Schleifendurchlauf es erneut
+         * versuchen kann.
+         */
+        return;
+    }
+
+    refreshPending_ = false;
+
+    ESP_LOGI(
+        logTag,
+        "Coalesced framebuffer displayed"
+    );
+}
+    void StickyCanvas::flushImmediately()
+{
+    if (
+        !dirty_ &&
+        !refreshPending_
+    ) {
+        return;
+    }
+
+    ESP_LOGI(
+        logTag,
+        "Refreshing Sticky Lotus framebuffer immediately"
+    );
+
+    const esp_err_t result =
+        panel_.RefreshFull();
+
+    if (result != ESP_OK) {
+        ESP_LOGE(
+            logTag,
+            "Immediate E-paper refresh failed: %s",
+            esp_err_to_name(result)
+        );
+
         return;
     }
 
     dirty_ = false;
-
-    ESP_LOGI(
-        logTag,
-        "Sticky Lotus framebuffer displayed"
-    );
+    refreshPending_ = false;
 }
-
 } // namespace sticky_lotus_sticky

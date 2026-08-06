@@ -26,12 +26,6 @@ constexpr const char* logTag =
 
 StickyInputProvider::StickyInputProvider()
 {
-    /*
-     * Eventhandler zuerst registrieren.
-     *
-     * Der Touch-Service ruft diese Funktion aus seinem
-     * eigenen FreeRTOS-Task auf.
-     */
     touch_service::SetEventHandler(
         &StickyInputProvider::touchEventHandler,
         this
@@ -71,10 +65,10 @@ void StickyInputProvider::touchEventHandler(
     provider->handleTouchEvent(event);
 }
 
-    Point StickyInputProvider::mapTouchPoint(
-        const std::uint16_t touchX,
-        const std::uint16_t touchY
-    )
+Point StickyInputProvider::mapTouchPoint(
+    const std::uint16_t touchX,
+    const std::uint16_t touchY
+)
 {
     /*
      * Touchcontroller:
@@ -84,19 +78,15 @@ void StickyInputProvider::touchEventHandler(
      * Display:
      * screenX = 0 ... 799
      * screenY = 0 ... 479
-     *
-     * X bleibt horizontal gespiegelt.
-     * Y wird zusätzlich gespiegelt, damit oben und unten
-     * wieder dem sichtbaren Spielerfeld entsprechen.
      */
     const float screenX =
-    std::clamp(
-        static_cast<float>(touchY),
-        0.0F,
-        static_cast<float>(
-            sticky_lotus::ui::AppRenderer::screenWidth - 1
-        )
-    );
+        std::clamp(
+            static_cast<float>(touchY),
+            0.0F,
+            static_cast<float>(
+                sticky_lotus::ui::AppRenderer::screenWidth - 1
+            )
+        );
 
     const float screenY =
         std::clamp(
@@ -185,15 +175,6 @@ void StickyInputProvider::handleTouchEvent(
             gestureStart_;
 
         gestureActive_ = true;
-
-        /*
-         * Begin und Move werden noch nicht an die Engine
-         * weitergegeben. Die App reagiert erst auf eine
-         * vollständig abgeschlossene Geste.
-         *
-         * So verursachen Fingerbewegungen keinen unnötigen
-         * E-Paper-Refresh.
-         */
         break;
 
     case touch_service::TouchPhase::kMove:
@@ -212,42 +193,62 @@ void StickyInputProvider::handleTouchEvent(
 
         break;
 
-    case touch_service::TouchPhase::kEnd:
+    case touch_service::TouchPhase::kEnd: {
         if (!gestureActive_) {
             return;
         }
 
         gestureActive_ = false;
 
-        pendingFrame_ = {};
+        InputFrame completedFrame{};
 
-        pendingFrame_.gesture =
+        completedFrame.gesture =
             detectGesture(
                 gestureStart_,
                 lastPosition_
             );
 
-        pendingFrame_.pointer.position =
+        completedFrame.pointer.position =
             lastPosition_;
 
-        pendingFrame_.pointer.released =
+        completedFrame.pointer.released =
             true;
 
-        pendingInput_ = true;
+        if (pendingCount_ < maximumPendingFrames) {
+            pendingFrames_[writeIndex_] =
+                completedFrame;
+
+            writeIndex_ =
+                (
+                    writeIndex_ + 1
+                ) % maximumPendingFrames;
+
+            ++pendingCount_;
+        } else {
+            ESP_LOGW(
+                logTag,
+                "Touch input queue full; dropping gesture"
+            );
+        }
 
         ESP_LOGI(
             logTag,
-            "Gesture: %d start=(%.0f,%.0f) end=(%.0f,%.0f)",
+            "Gesture queued: %d start=(%.0f,%.0f) "
+            "end=(%.0f,%.0f) pending=%u",
             static_cast<int>(
-                pendingFrame_.gesture.gesture
+                completedFrame.gesture.gesture
             ),
             gestureStart_.x,
             gestureStart_.y,
             lastPosition_.x,
-            lastPosition_.y
+            lastPosition_.y,
+            static_cast<unsigned>(
+                pendingCount_
+            )
         );
 
         break;
+    }
 
     case touch_service::TouchPhase::kNone:
         break;
@@ -260,7 +261,7 @@ bool StickyInputProvider::hasPendingInput() const
         mutex_
     );
 
-    return pendingInput_;
+    return pendingCount_ > 0;
 }
 
 InputFrame StickyInputProvider::poll()
@@ -269,15 +270,19 @@ InputFrame StickyInputProvider::poll()
         mutex_
     );
 
-    if (!pendingInput_) {
+    if (pendingCount_ == 0) {
         return {};
     }
 
     const InputFrame result =
-        pendingFrame_;
+        pendingFrames_[readIndex_];
 
-    pendingFrame_ = {};
-    pendingInput_ = false;
+    readIndex_ =
+        (
+            readIndex_ + 1
+        ) % maximumPendingFrames;
+
+    --pendingCount_;
 
     return result;
 }

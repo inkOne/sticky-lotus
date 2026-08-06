@@ -79,16 +79,27 @@ esp_err_t run()
         STICKY_EPD_HEIGHT
     );
 
-    sticky_lotus_sticky::StickyCanvas canvas(
+    /*
+     * Diese Objekte leben während der gesamten Laufzeit der Firmware.
+     *
+     * Als lokale Variablen würden insbesondere Input-Queue,
+     * Renderer und Application den kleinen Stack des main-Tasks
+     * belasten. Durch static liegen ihre Daten stattdessen im
+     * statischen Speicher.
+     */
+    static sticky_lotus_sticky::StickyCanvas canvas(
         panel,
         STICKY_EPD_WIDTH,
         STICKY_EPD_HEIGHT
     );
 
-    sticky_lotus_sticky::StickyImageRenderer imageRenderer(canvas);
-    sticky_lotus_sticky::StickyInputProvider inputProvider;
+    static sticky_lotus_sticky::StickyImageRenderer imageRenderer(
+        canvas
+    );
 
-    sticky_lotus::app::Application application(
+    static sticky_lotus_sticky::StickyInputProvider inputProvider;
+
+    static sticky_lotus::app::Application application(
         canvas,
         imageRenderer,
         inputProvider
@@ -97,38 +108,36 @@ esp_err_t run()
     /*
      * Der erste Tick zeichnet die Startansicht.
      */
+    /*
+ * Erster Frame wird normal erzeugt.
+ */
     application.tick();
+
+    /*
+     * Beim Start wollen wir nicht erst 500 ms warten.
+     */
+    canvas.flushImmediately();
 
     ESP_LOGI(
         logTag,
         "Initial Sticky Lotus screen rendered"
-        );
-    ESP_LOGI(
-
-        logTag,
-
-        "Entering permanent touch event loop"
-
     );
 
-    /*
-     * Danach wird Application::tick() nur aufgerufen,
-     * wenn eine abgeschlossene Geste bereitliegt.
-     *
-     * Das ist für E-Paper entscheidend:
-     * Begin- und Move-Ereignisse sollen nicht jeweils
-     * einen vollständigen Displayrefresh auslösen.
-     */
-
     while (true) {
-        if (inputProvider.hasPendingInput()) {
-            ESP_LOGI(
-                logTag,
-                "Touch received"
-            );
-
+        /*
+         * Alle verfügbaren Eingaben möglichst schnell
+         * nacheinander verarbeiten.
+         */
+        while (inputProvider.hasPendingInput()) {
             application.tick();
         }
+
+        /*
+         * Der tatsächliche E-Paper-Refresh erfolgt erst,
+         * wenn seit 500 ms keine neue Darstellung mehr
+         * erzeugt wurde.
+         */
+        canvas.serviceRefresh();
 
         vTaskDelay(
             pdMS_TO_TICKS(10)

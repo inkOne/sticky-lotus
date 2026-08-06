@@ -2,6 +2,9 @@
 
 #include "sticky_lotus/input/InputProvider.h"
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <mutex>
 
 namespace touch_service {
@@ -10,17 +13,6 @@ namespace touch_service {
 
 namespace sticky_lotus_sticky {
 
-    /**
-     * Übersetzt die Ereignisse des GT911-Touchcontrollers
-     * in die plattformunabhängigen Sticky-Lotus-Eingaben.
-     *
-     * Die Gesture-Erkennung entspricht funktional dem
-     * RaylibInputProvider des Simulators:
-     *
-     * - kurze Bewegung: Tap
-     * - überwiegend horizontal: SwipeLeft / SwipeRight
-     * - überwiegend vertikal: SwipeUp / SwipeDown
-     */
     class StickyInputProvider final
         : public sticky_lotus::input::InputProvider
     {
@@ -30,15 +22,20 @@ namespace sticky_lotus_sticky {
         [[nodiscard]]
         sticky_lotus::input::InputFrame poll() override;
 
-        /**
-         * Liefert true, wenn eine abgeschlossene Eingabe
-         * für Application::tick() bereitliegt.
-         */
         [[nodiscard]]
         bool hasPendingInput() const;
 
     private:
         static constexpr float swipeThreshold = 45.0F;
+
+        /*
+         * Maximal 32 noch nicht verarbeitete Touch-Eingaben.
+         *
+         * Dadurch gehen schnelle Mehrfachtipps nicht verloren,
+         * während die App Eingaben verarbeitet oder das
+         * E-Paper später aktualisiert wird.
+         */
+        static constexpr std::size_t maximumPendingFrames = 32;
 
         static void touchEventHandler(
             const touch_service::TouchEventInfo& event,
@@ -49,13 +46,6 @@ namespace sticky_lotus_sticky {
             const touch_service::TouchEventInfo& event
         );
 
-        /**
-         * Touch-Service arbeitet im Hochformat 480 × 800.
-         * Sticky Lotus zeichnet im Querformat 800 × 480.
-         *
-         * Diese Methode dreht die Koordinaten in das
-         * Koordinatensystem des AppRenderers.
-         */
         [[nodiscard]]
         static sticky_lotus::ui::Point mapTouchPoint(
             std::uint16_t touchX,
@@ -70,13 +60,22 @@ namespace sticky_lotus_sticky {
 
         mutable std::mutex mutex_;
 
-        sticky_lotus::input::InputFrame pendingFrame_{};
+        /*
+         * Ringpuffer für abgeschlossene Gesten.
+         */
+        std::array<
+            sticky_lotus::input::InputFrame,
+            maximumPendingFrames
+        > pendingFrames_{};
+
+        std::size_t readIndex_ = 0;
+        std::size_t writeIndex_ = 0;
+        std::size_t pendingCount_ = 0;
 
         sticky_lotus::ui::Point gestureStart_{};
         sticky_lotus::ui::Point lastPosition_{};
 
         bool gestureActive_ = false;
-        bool pendingInput_ = false;
     };
 
 } // namespace sticky_lotus_sticky

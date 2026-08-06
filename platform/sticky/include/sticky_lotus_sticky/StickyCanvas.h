@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include "esp_timer.h"
 
 class EpaperPanel;
 
@@ -75,6 +76,19 @@ public:
     ) override;
 
     void flush() override;
+    /**
+ * Führt einen vorgemerkten Display-Refresh aus,
+ * sobald seit der letzten Änderung genügend Ruhezeit
+ * vergangen ist.
+ */
+    void serviceRefresh();
+
+    /**
+     * Erzwingt den Refresh sofort.
+     *
+     * Sinnvoll für die erste Darstellung beim Start.
+     */
+    void flushImmediately();
 
 private:
     void setPixel(
@@ -94,6 +108,14 @@ private:
     int width_;
     int height_;
     bool dirty_ = false;
+
+    bool refreshPending_ = false;
+
+    std::int64_t lastFrameChangeTimeUs_ = 0;
+    /** Zeit die gewartet wird bis die Eingabe ausgeführt wird.
+     * **/
+    static constexpr std::int64_t refreshDelayUs =
+        300000;
 };
 
 } // namespace sticky_lotus_sticky
