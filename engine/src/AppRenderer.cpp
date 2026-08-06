@@ -24,6 +24,7 @@ namespace sticky_lotus::ui
 
         drawPlayers(game);
         drawMenuButton();
+        drawBatteryPercent();
 
         canvas_.invalidate({
             0.0F,
@@ -210,17 +211,27 @@ namespace sticky_lotus::ui
         const std::size_t playerCount =
             game.getPlayerCount();
 
-        const Rect minusArea =
+        const Rect physicalMinusArea =
             tableLayout_.minusArea(
                 playerIndex,
                 playerCount
             );
 
-        const Rect plusArea =
+        const Rect physicalPlusArea =
             tableLayout_.plusArea(
                 playerIndex,
                 playerCount
             );
+
+        const Rect minusArea =
+            upsideDown
+                ? physicalPlusArea
+                : physicalMinusArea;
+
+        const Rect plusArea =
+            upsideDown
+                ? physicalMinusArea
+                : physicalPlusArea;
 
         const Rect lifeArea =
             tableLayout_.counterArea(
@@ -302,7 +313,7 @@ namespace sticky_lotus::ui
                 playerArea.width - 40.0F,
                 50.0F
             },
-            22,
+            30,
             Ink::Black,
             TextAlignment::Center,
             rotation
@@ -381,7 +392,7 @@ namespace sticky_lotus::ui
                     playerArea.width - 40.0F,
                     40.0F
                 },
-                22,
+                20,
                 Ink::Black,
                 TextAlignment::Center,
                 rotation
@@ -1300,6 +1311,151 @@ namespace sticky_lotus::ui
                 playerCount
             );
         }
+
+    void AppRenderer::setBatteryPercent(
+    const int batteryPercent
+)
+    {
+        batteryPercent_ =
+            std::clamp(
+                batteryPercent,
+                -1,
+                100
+            );
+    }
+    void AppRenderer::drawBatteryPercent()
+    {
+        if (batteryPercent_ < 0) {
+            return;
+        }
+
+        const std::string batteryText =
+            std::to_string(
+                batteryPercent_
+            ) +
+            "%";
+
+        const Rect textArea = {
+            static_cast<float>(screenWidth) - 62.0F,
+            static_cast<float>(screenHeight) - 28.0F,
+            52.0F,
+            18.0F
+        };
+
+        if (batteryCharging_) {
+            drawChargingBolt({
+                static_cast<float>(screenWidth) - 76.0F,
+                static_cast<float>(screenHeight) - 27.0F
+            });
+        }
+
+        canvas_.drawText(
+            batteryText,
+            textArea,
+            14,
+            Ink::Black,
+            TextAlignment::Right
+        );
+    }
+    void AppRenderer::setBatteryStatus(
+        const int batteryPercent,
+        const bool charging
+    )
+        {
+            batteryPercent_ =
+                std::clamp(
+                    batteryPercent,
+                    -1,
+                    100
+                );
+
+            batteryCharging_ =
+                charging;
+        }
+    void AppRenderer::drawChargingBolt(
+        const Point origin
+    )
+    {
+        canvas_.drawLine(
+            {
+                origin.x + 6.0F,
+                origin.y
+            },
+            {
+                origin.x,
+                origin.y + 10.0F
+            },
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawLine(
+            {
+                origin.x,
+                origin.y + 10.0F
+            },
+            {
+                origin.x + 5.0F,
+                origin.y + 10.0F
+            },
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawLine(
+            {
+                origin.x + 5.0F,
+                origin.y + 10.0F
+            },
+            {
+                origin.x + 1.0F,
+                origin.y + 20.0F
+            },
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawLine(
+            {
+                origin.x + 1.0F,
+                origin.y + 20.0F
+            },
+            {
+                origin.x + 10.0F,
+                origin.y + 8.0F
+            },
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawLine(
+            {
+                origin.x + 10.0F,
+                origin.y + 8.0F
+            },
+            {
+                origin.x + 5.0F,
+                origin.y + 8.0F
+            },
+            2.0F,
+            Ink::Black
+        );
+
+        canvas_.drawLine(
+            {
+                origin.x + 5.0F,
+                origin.y + 8.0F
+            },
+            {
+                origin.x + 6.0F,
+                origin.y
+            },
+            2.0F,
+            Ink::Black
+        );
+    }
+
+
 
 
 } // namespace sticky_lotus::ui

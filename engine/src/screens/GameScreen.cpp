@@ -143,9 +143,9 @@ void GameScreen::handleInput(
     }
 }
 
-void GameScreen::processTap(
-    const ui::Point position
-)
+    void GameScreen::processTap(
+        const ui::Point position
+    )
 {
     if (
         context_.renderer
@@ -157,7 +157,7 @@ void GameScreen::processTap(
     }
 
     const std::size_t playerIndex =
-    getPlayerIndex(position);
+        getPlayerIndex(position);
 
     if (
         playerIndex >=
@@ -166,9 +166,28 @@ void GameScreen::processTap(
         return;
     }
 
+    int lifeChange =
+        getLifeChange(position);
+
+    const bool upsideDown =
+        context_.renderer.isPlayerUpsideDown(
+            playerIndex,
+            context_.game.getPlayerCount()
+        );
+
+    /*
+     * Bei Spieler 3 und 4 sind Plus und Minus
+     * durch die 180°-Drehung positionsmäßig vertauscht.
+     * Deshalb muss auch die Funktion invertiert werden.
+     */
+    if (upsideDown) {
+        lifeChange =
+            -lifeChange;
+    }
+
     context_.game.changeLife(
         playerIndex,
-        getLifeChange(position)
+        lifeChange
     );
 }
 

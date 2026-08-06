@@ -28,6 +28,11 @@ namespace sticky_lotus::app {
          */
         void tick();
 
+        void setBatteryStatus(
+            int batteryPercent,
+            bool charging
+        );
+
     private:
         GameState game_;
         NavigationState navigation_;
@@ -38,6 +43,7 @@ namespace sticky_lotus::app {
 
         ui::AppRenderer renderer_;
         screens::ScreenManager screenManager_;
+
     };
 
 } // namespace sticky_lotus::app

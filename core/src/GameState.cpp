@@ -2,30 +2,34 @@
 #include "sticky_lotus/DeathMessageGenerator.h"
 
 #include <algorithm>
-#include <stdexcept>
-namespace sticky_lotus{
 
-    Player createPlayer(const char* name)
-    {
-        return Player{
-            .name = name,
-            .life = 40,
-            .poison = 0,
-            .deathMessage = "",
-            .lastEliminationReason =
-                EliminationReason::None
-        };
-    }
+namespace sticky_lotus {
 
+namespace {
 
+Player createPlayer(
+    const char* name
+)
+{
+    return Player{
+        .name = name,
+        .life = 40,
+        .poison = 0,
+        .deathMessage = "",
+        .lastEliminationReason =
+            EliminationReason::None
+    };
+}
+
+} // namespace
 
 GameState::GameState()
     : players_{
-    createPlayer("Player 1"),
-    createPlayer("Player 2"),
-    createPlayer("Player 3"),
-    createPlayer("Player 4")
-}
+        createPlayer("Player 1"),
+        createPlayer("Player 2"),
+        createPlayer("Player 3"),
+        createPlayer("Player 4")
+    }
 {
 }
 
@@ -35,14 +39,6 @@ const Player& GameState::getPlayer(
 {
     /*
      * Im Embedded-Build sind C++-Exceptions deaktiviert.
-     *
-     * Ein ungültiger Index darf daher nicht über
-     * std::out_of_range signalisiert werden.
-     *
-     * Da alle Aufrufer ihre Indizes aus getPlayerCount()
-     * beziehungsweise aus dem Layout ableiten, sollte dieser
-     * Fall regulär nicht auftreten.
-     *
      * Als defensive Rückfalllösung geben wir Spieler 1 zurück.
      */
     if (index >= getPlayerCount()) {
@@ -70,42 +66,60 @@ void GameState::changeLife(
     if (playerIndex >= getPlayerCount()) {
         return;
     }
+
     players_[playerIndex].life =
         std::max(
             0,
             players_[playerIndex].life + amount
         );
-    updateEliminationState(playerIndex);
+
+    updateEliminationState(
+        playerIndex
+    );
 }
 
-void GameState::setPlayerMode(const PlayerMode mode)
+void GameState::setPlayerMode(
+    const PlayerMode mode
+)
 {
     settings_.playerMode = mode;
     reset();
 }
 
-void GameState::setMultiplayerStartingLife(const int life)
+void GameState::setMultiplayerStartingLife(
+    const int life
+)
 {
     if (life <= 0) {
         return;
     }
 
-    settings_.multiplayerStartingLife = life;
+    settings_.multiplayerStartingLife =
+        life;
 
-    if (settings_.playerMode == PlayerMode::FourPlayers) {
+    if (
+        settings_.playerMode ==
+        PlayerMode::FourPlayers
+    ) {
         reset();
     }
 }
 
-void GameState::setTwoPlayerStartingLife(const int life)
+void GameState::setTwoPlayerStartingLife(
+    const int life
+)
 {
     if (life <= 0) {
         return;
     }
 
-    settings_.twoPlayerStartingLife = life;
+    settings_.twoPlayerStartingLife =
+        life;
 
-    if (settings_.playerMode == PlayerMode::TwoPlayers) {
+    if (
+        settings_.playerMode ==
+        PlayerMode::TwoPlayers
+    ) {
         reset();
     }
 }
@@ -114,13 +128,20 @@ void GameState::reset()
 {
     const int startingLife =
         settings_.startingLife();
+
     for (Player& player : players_) {
-        player.life = startingLife;
-        player.poison = 0;
+        player.life =
+            startingLife;
+
+        player.poison =
+            0;
+
         player.deathMessage.clear();
+
         player.lastEliminationReason =
             EliminationReason::None;
     }
+
     resetCommanderDamage();
 }
 
@@ -137,24 +158,36 @@ void GameState::changeCommanderDamage(
     ) {
         return;
     }
-    int& damage =
-        commanderDamage_[attackerIndex][defenderIndex];
 
-    const int previousDamage = damage;
-    damage = std::max(
-        0,
-        damage + amount
-    );
+    int& damage =
+        commanderDamage_[
+            attackerIndex
+        ][
+            defenderIndex
+        ];
+
+    const int previousDamage =
+        damage;
+
+    damage =
+        std::max(
+            0,
+            damage + amount
+        );
 
     const int actualChange =
         damage - previousDamage;
+
     players_[defenderIndex].life =
         std::max(
             0,
             players_[defenderIndex].life -
                 actualChange
         );
-    updateEliminationState(defenderIndex);
+
+    updateEliminationState(
+        defenderIndex
+    );
 }
 
 int GameState::getCommanderDamage(
@@ -169,12 +202,19 @@ int GameState::getCommanderDamage(
         return 0;
     }
 
-    return commanderDamage_[attackerIndex][defenderIndex];
+    return commanderDamage_[
+        attackerIndex
+    ][
+        defenderIndex
+    ];
 }
 
 void GameState::resetCommanderDamage()
 {
-    for (auto& attackerValues : commanderDamage_) {
+    for (
+        auto& attackerValues :
+        commanderDamage_
+    ) {
         attackerValues.fill(0);
     }
 }
@@ -186,6 +226,7 @@ EliminationReason GameState::getEliminationReason(
     if (playerIndex >= getPlayerCount()) {
         return EliminationReason::None;
     }
+
     for (
         std::size_t attackingPlayer = 0;
         attackingPlayer < getPlayerCount();
@@ -194,18 +235,30 @@ EliminationReason GameState::getEliminationReason(
         if (attackingPlayer == playerIndex) {
             continue;
         }
+
         if (
-            commanderDamage_[attackingPlayer][playerIndex] >= 21
+            commanderDamage_[
+                attackingPlayer
+            ][
+                playerIndex
+            ] >= 21
         ) {
             return EliminationReason::CommanderDamage;
         }
     }
-    if (players_[playerIndex].poison >= 10) {
+
+    if (
+        players_[playerIndex].poison >= 10
+    ) {
         return EliminationReason::Poison;
     }
-    if (players_[playerIndex].life == 0) {
+
+    if (
+        players_[playerIndex].life == 0
+    ) {
         return EliminationReason::Life;
     }
+
     return EliminationReason::None;
 }
 
@@ -213,7 +266,10 @@ bool GameState::isPlayerEliminated(
     const std::size_t playerIndex
 ) const
 {
-    return getEliminationReason(playerIndex) !=
+    return
+        getEliminationReason(
+            playerIndex
+        ) !=
         EliminationReason::None;
 }
 
@@ -229,9 +285,13 @@ void GameState::changePoison(
     players_[playerIndex].poison =
         std::max(
             0,
-            players_[playerIndex].poison + amount
+            players_[playerIndex].poison +
+                amount
         );
-    updateEliminationState(playerIndex);
+
+    updateEliminationState(
+        playerIndex
+    );
 }
 
 int GameState::getPoison(
@@ -243,6 +303,97 @@ int GameState::getPoison(
     }
 
     return players_[playerIndex].poison;
+}
+
+GameSnapshot GameState::createSnapshot() const
+{
+    GameSnapshot snapshot{};
+
+    snapshot.magic =
+        GameSnapshot::validMagic;
+
+    snapshot.settings =
+        settings_;
+
+    snapshot.commanderDamage =
+        commanderDamage_;
+
+    for (
+        std::size_t playerIndex = 0;
+        playerIndex < maximumPlayerCount;
+        ++playerIndex
+    ) {
+        snapshot.life[playerIndex] =
+            players_[playerIndex].life;
+
+        snapshot.poison[playerIndex] =
+            players_[playerIndex].poison;
+
+        snapshot.eliminationReasons[
+            playerIndex
+        ] =
+            players_[playerIndex]
+                .lastEliminationReason;
+    }
+
+    return snapshot;
+}
+
+void GameState::restoreSnapshot(
+    const GameSnapshot& snapshot
+)
+{
+    if (
+        snapshot.magic !=
+        GameSnapshot::validMagic
+    ) {
+        return;
+    }
+
+    settings_ =
+        snapshot.settings;
+
+    commanderDamage_ =
+        snapshot.commanderDamage;
+
+    for (
+        std::size_t playerIndex = 0;
+        playerIndex < maximumPlayerCount;
+        ++playerIndex
+    ) {
+        Player& player =
+            players_[playerIndex];
+
+        player.life =
+            std::max(
+                0,
+                snapshot.life[playerIndex]
+            );
+
+        player.poison =
+            std::max(
+                0,
+                snapshot.poison[playerIndex]
+            );
+
+        /*
+         * Todesnachricht zunächst leeren.
+         * updateEliminationState() erzeugt bei einem
+         * ausgeschiedenen Spieler wieder eine passende Nachricht.
+         */
+        player.deathMessage.clear();
+
+        /*
+         * Auf None setzen, damit updateEliminationState()
+         * einen Ausscheidungszustand als neuen Übergang erkennt.
+         */
+        player.lastEliminationReason =
+            EliminationReason::None;
+
+        updateEliminationState(
+            playerIndex
+        );
+    }
 }
 
 void GameState::updateEliminationState(
@@ -257,19 +408,22 @@ void GameState::updateEliminationState(
         players_[playerIndex];
 
     const EliminationReason currentReason =
-        getEliminationReason(playerIndex);
+        getEliminationReason(
+            playerIndex
+        );
 
     /*
      * Spieler ist wieder aktiv.
-     *
-     * Dadurch kann beim nächsten Ausscheiden
-     * ein neuer Spruch ausgewählt werden.
      */
-    if (currentReason == EliminationReason::None) {
+    if (
+        currentReason ==
+        EliminationReason::None
+    ) {
         player.lastEliminationReason =
             EliminationReason::None;
 
         player.deathMessage.clear();
+
         return;
     }
 
@@ -290,4 +444,5 @@ void GameState::updateEliminationState(
     player.lastEliminationReason =
         currentReason;
 }
-}
+
+} // namespace sticky_lotus

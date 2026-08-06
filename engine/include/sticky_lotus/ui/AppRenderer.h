@@ -121,6 +121,14 @@ public:
         std::size_t playerCount
     ) const;
 
+    void setBatteryPercent(
+        int batteryPercent
+    );
+    void setBatteryStatus(
+        int batteryPercent,
+        bool charging
+    );
+
 private:
     Canvas& canvas_;
     ImageRenderer& imageRenderer_;
@@ -159,6 +167,15 @@ private:
         const char* label,
         bool selected
     );
+
+    void drawBatteryPercent();
+
+    void drawChargingBolt(
+        Point origin
+    );
+
+    int batteryPercent_ = -1;
+    bool batteryCharging_ = false;
     /**
  * Berechnet die sichtbare Zeile eines Zielspielers.
  *

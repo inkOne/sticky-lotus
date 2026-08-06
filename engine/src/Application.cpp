@@ -32,12 +32,19 @@ namespace sticky_lotus::app {
         );
 
         canvas_.beginFrame();
-
         screenManager_.draw();
-
         canvas_.endFrame();
         canvas_.flush();
     }
 
-
+    void Application::setBatteryStatus(
+        const int batteryPercent,
+        const bool charging
+    )
+    {
+        renderer_.setBatteryStatus(
+            batteryPercent,
+            charging
+        );
+    }
 } // namespace sticky_lotus::app

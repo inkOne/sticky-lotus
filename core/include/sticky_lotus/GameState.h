@@ -5,9 +5,17 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 namespace sticky_lotus {
+
+/*
+ * Maximale Spielerzahl der Anwendung.
+ *
+ * Wird sowohl von GameState als auch von GameSnapshot verwendet.
+ */
+inline constexpr std::size_t maximumPlayerCount = 4;
 
 struct Player
 {
@@ -20,10 +28,47 @@ struct Player
         EliminationReason::None;
 };
 
+/*
+ * Spielstand für Deep-Sleep.
+ */
+struct GameSnapshot
+{
+    static constexpr std::uint32_t validMagic =
+        0x534C4F54; // "SLOT"
+
+    std::uint32_t magic = 0;
+
+    GameSettings settings{};
+
+    std::array<
+        int,
+        maximumPlayerCount
+    > life{};
+
+    std::array<
+        int,
+        maximumPlayerCount
+    > poison{};
+
+    std::array<
+        EliminationReason,
+        maximumPlayerCount
+    > eliminationReasons{};
+
+    std::array<
+        std::array<
+            int,
+            maximumPlayerCount
+        >,
+        maximumPlayerCount
+    > commanderDamage{};
+};
+
 class GameState
 {
 public:
-    static constexpr std::size_t maximumPlayerCount = 4;
+    static constexpr std::size_t maximumPlayerCount =
+        sticky_lotus::maximumPlayerCount;
 
     GameState();
 
@@ -53,11 +98,17 @@ public:
         int amount
     );
 
-    void setPlayerMode(PlayerMode mode);
+    void setPlayerMode(
+        PlayerMode mode
+    );
 
-    void setMultiplayerStartingLife(int life);
+    void setMultiplayerStartingLife(
+        int life
+    );
 
-    void setTwoPlayerStartingLife(int life);
+    void setTwoPlayerStartingLife(
+        int life
+    );
 
     void reset();
 
@@ -83,6 +134,16 @@ public:
         std::size_t playerIndex
     ) const;
 
+    /*
+     * Deep-Sleep-Unterstützung
+     */
+    [[nodiscard]]
+    GameSnapshot createSnapshot() const;
+
+    void restoreSnapshot(
+        const GameSnapshot& snapshot
+    );
+
 private:
     GameSettings settings_;
 
@@ -92,8 +153,11 @@ private:
     > players_;
 
     /*
-     * Erster Index: angreifender Commander.
-     * Zweiter Index: Spieler, der Schaden erhalten hat.
+     * Erster Index:
+     * angreifender Commander
+     *
+     * Zweiter Index:
+     * verteidigender Spieler
      */
     std::array<
         std::array<

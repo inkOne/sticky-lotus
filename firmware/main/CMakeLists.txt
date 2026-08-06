@@ -7,10 +7,11 @@ idf_component_register(
         "."
 
         EMBED_FILES
-        "../../assets/poison.bmp"
+        "../../assets/icons/poison.bmp"
 
         REQUIRES
-        nvs_flash
-        sticky_lotus_platform
+            nvs_flash
+            sticky_lotus_platform
+            battery_service
 )
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_20)
