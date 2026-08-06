@@ -29,11 +29,24 @@ GameState::GameState()
 {
 }
 
-
-const Player& GameState::getPlayer(const std::size_t index) const
+const Player& GameState::getPlayer(
+    const std::size_t index
+) const
 {
+    /*
+     * Im Embedded-Build sind C++-Exceptions deaktiviert.
+     *
+     * Ein ungültiger Index darf daher nicht über
+     * std::out_of_range signalisiert werden.
+     *
+     * Da alle Aufrufer ihre Indizes aus getPlayerCount()
+     * beziehungsweise aus dem Layout ableiten, sollte dieser
+     * Fall regulär nicht auftreten.
+     *
+     * Als defensive Rückfalllösung geben wir Spieler 1 zurück.
+     */
     if (index >= getPlayerCount()) {
-        throw std::out_of_range("Invalid player index");
+        return players_[0];
     }
 
     return players_[index];

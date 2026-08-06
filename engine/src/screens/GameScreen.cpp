@@ -1,4 +1,46 @@
 #include "sticky_lotus/screens/GameScreen.h"
+#include "sticky_lotus/ui/AppRenderer.h"
+
+namespace {
+
+    sticky_lotus::input::TouchGesture rotateGesture180(
+        const sticky_lotus::input::TouchGesture gesture
+    )
+    {
+        using sticky_lotus::input::TouchGesture;
+
+        switch (gesture) {
+        case TouchGesture::None:
+            return TouchGesture::None;
+
+        case TouchGesture::Tap:
+            return TouchGesture::Tap;
+
+        case TouchGesture::SwipeUp:
+            return TouchGesture::SwipeDown;
+
+        case TouchGesture::SwipeDown:
+            return TouchGesture::SwipeUp;
+
+        case TouchGesture::SwipeLeft:
+            return TouchGesture::SwipeRight;
+
+        case TouchGesture::SwipeRight:
+            return TouchGesture::SwipeLeft;
+        }
+
+        return TouchGesture::None;
+    }
+
+    bool isUpperPlayerArea(
+        const sticky_lotus::ui::Point& position
+    )
+    {
+        return position.y <
+            sticky_lotus::ui::AppRenderer::screenHeight / 2.0F;
+    }
+
+} // namespace
 
 namespace sticky_lotus::screens {
 
@@ -15,13 +57,11 @@ void GameScreen::handleInput(
     const input::InputFrame& inputFrame
 )
 {
-    // Mittlere Hardwaretaste öffnet die Settings.
     if (inputFrame.buttons.centerPressed) {
         context_.navigation.showSettings();
         return;
     }
 
-    // Vorläufig verändern die äußeren Hardwaretasten Spieler 1.
     if (inputFrame.buttons.leftPressed) {
         context_.game.changeLife(0, -1);
     }
@@ -30,7 +70,35 @@ void GameScreen::handleInput(
         context_.game.changeLife(0, 1);
     }
 
-    switch (inputFrame.gesture.gesture) {
+    TouchGesture effectiveGesture =
+        inputFrame.gesture.gesture;
+
+    /*
+     * Nur Swipes in der oberen Displayhälfte drehen.
+     *
+     * Die Position selbst bleibt unverändert.
+     * Dadurch bleibt oben links auch oben links und
+     * unten links auch unten links.
+     */
+    const bool isSwipe =
+        effectiveGesture == TouchGesture::SwipeLeft ||
+        effectiveGesture == TouchGesture::SwipeRight ||
+        effectiveGesture == TouchGesture::SwipeUp ||
+        effectiveGesture == TouchGesture::SwipeDown;
+
+    if (
+        isSwipe &&
+        isUpperPlayerArea(
+            inputFrame.gesture.startPosition
+        )
+    ) {
+        effectiveGesture =
+            rotateGesture180(
+                effectiveGesture
+            );
+    }
+
+    switch (effectiveGesture) {
     case TouchGesture::Tap:
         processTap(
             inputFrame.gesture.endPosition
@@ -38,11 +106,18 @@ void GameScreen::handleInput(
         break;
 
     case TouchGesture::SwipeLeft:
-    case TouchGesture::SwipeRight:
+    case TouchGesture::SwipeRight: {
+        input::GestureEvent effectiveEvent =
+            inputFrame.gesture;
+
+        effectiveEvent.gesture =
+            effectiveGesture;
+
         processSwipe(
-            inputFrame.gesture
+            effectiveEvent
         );
         break;
+    }
 
     case TouchGesture::SwipeUp: {
         const std::size_t playerIndex =

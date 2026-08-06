@@ -586,13 +586,13 @@ namespace sticky_lotus::ui
             multiplayerLife == 20
         );
 
-        drawSettingsButton(
+        /*drawSettingsButton(
             getMultiplayerEditRectangle(),
             "Edit",
             multiplayerLife != 40 &&
             multiplayerLife != 30 &&
             multiplayerLife != 20
-        );
+        );*/
 
         canvas_.drawText(
             "Two Player Starting Life",
@@ -629,13 +629,13 @@ namespace sticky_lotus::ui
             twoPlayerLife == 40
         );
 
-        drawSettingsButton(
+        /*drawSettingsButton(
             getTwoPlayerEditRectangle(),
             "Edit",
             twoPlayerLife != 20 &&
             twoPlayerLife != 30 &&
             twoPlayerLife != 40
-        );
+        );*/
 
         drawSettingsButton(
             getResetButtonRectangle(),
@@ -1288,6 +1288,16 @@ namespace sticky_lotus::ui
 
         canvas_.invalidate(playerArea);
     }
+    bool AppRenderer::isPlayerUpsideDown(
+        const std::size_t playerIndex,
+        const std::size_t playerCount
+    ) const
+        {
+            return tableLayout_.isUpsideDown(
+                playerIndex,
+                playerCount
+            );
+        }
 
 
 } // namespace sticky_lotus::ui

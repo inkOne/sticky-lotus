@@ -1,0 +1,18 @@
+# Projektlokale ESP-IDF-Installation und Toolchain
+.esp-idf/
+.idf-tools/
+
+# ESP-IDF-Buildausgaben
+build/
+managed_components/
+
+# Lokale Konfigurationen
+sdkconfig
+sdkconfig.old
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store

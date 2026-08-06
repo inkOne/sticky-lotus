@@ -8,6 +8,8 @@
 #include "sticky_lotus/ui/TableLayout.h"
 #include "sticky_lotus/ui/ImageRenderer.h"
 
+class GameState;
+
 namespace sticky_lotus::ui {
 
 /**
@@ -109,6 +111,12 @@ public:
 
     [[nodiscard]]
     Rect getPoisonMinusRectangle(
+        std::size_t playerIndex,
+        std::size_t playerCount
+    ) const;
+
+    [[nodiscard]]
+    bool isPlayerUpsideDown(
         std::size_t playerIndex,
         std::size_t playerCount
     ) const;
