@@ -129,6 +129,7 @@ public:
         bool charging
     );
 
+    void drawSleepScreen();
 private:
     Canvas& canvas_;
     ImageRenderer& imageRenderer_;

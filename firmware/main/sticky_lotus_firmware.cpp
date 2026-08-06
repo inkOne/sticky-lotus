@@ -125,17 +125,36 @@ bool isPowerButtonPressed()
  *
  * Das vorhandene E-Paper-Bild bleibt dabei sichtbar.
  */
-void enterDeepSleep(
-    EpaperPanel& panel
-)
+    void enterDeepSleep(
+        EpaperPanel& panel,
+        sticky_lotus::app::Application& application,
+        sticky_lotus_sticky::StickyCanvas& canvas
+    )
 {
     ESP_LOGI(
         logTag,
-        "Power button pressed; entering deep sleep"
+        "Power button pressed; preparing deep sleep"
+    );
+
+    /*
+     * Speziellen Standby-Bildschirm in den Framebuffer zeichnen.
+     */
+    application.showSleepScreen();
+
+    /*
+     * Den Sleep-Screen sofort vollständig auf das E-Paper
+     * übertragen. Erst danach darf der Panelcontroller schlafen.
+     */
+    canvas.flushImmediately();
+
+    ESP_LOGI(
+        logTag,
+        "Sleep screen displayed"
     );
 
     /*
      * Displaycontroller schlafen legen.
+     * Das zuletzt dargestellte Bild bleibt auf dem E-Paper sichtbar.
      */
     const esp_err_t panelSleepResult =
         panel.Sleep();
@@ -151,10 +170,8 @@ void enterDeepSleep(
     }
 
     /*
-     * Warten, bis die aktuelle Betätigung beendet ist.
-     *
-     * Andernfalls könnte der noch aktive LOW-Pegel
-     * sofort wieder einen Wake-up auslösen.
+     * Warten, bis die Taste losgelassen wurde.
+     * Sonst könnte derselbe LOW-Pegel sofort wieder aufwecken.
      */
     while (isPowerButtonPressed()) {
         vTaskDelay(
@@ -163,7 +180,7 @@ void enterDeepSleep(
     }
 
     /*
-     * Erneuter LOW-Pegel auf GPIO 4 weckt das Gerät auf.
+     * Ein neuer LOW-Pegel auf GPIO 4 weckt den ESP32-S3 auf.
      */
     const esp_err_t wakeupResult =
         esp_sleep_enable_ext0_wakeup(
@@ -188,10 +205,6 @@ void enterDeepSleep(
         "Deep sleep starting"
     );
 
-    /*
-     * Zeit geben, damit die letzte Logmeldung
-     * noch über die serielle Schnittstelle ausgegeben wird.
-     */
     vTaskDelay(
         pdMS_TO_TICKS(100)
     );
@@ -408,7 +421,9 @@ esp_err_t run()
             !previousPowerButtonPressed
         ) {
             enterDeepSleep(
-                panel
+                panel,
+                application,
+                canvas
             );
         }
 

@@ -47,4 +47,8 @@ namespace sticky_lotus::app {
             charging
         );
     }
+    void Application::showSleepScreen()
+    {
+        renderer_.drawSleepScreen();
+    }
 } // namespace sticky_lotus::app

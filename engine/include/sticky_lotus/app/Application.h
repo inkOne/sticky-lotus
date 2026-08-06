@@ -32,6 +32,7 @@ namespace sticky_lotus::app {
             int batteryPercent,
             bool charging
         );
+        void showSleepScreen();
 
     private:
         GameState game_;
