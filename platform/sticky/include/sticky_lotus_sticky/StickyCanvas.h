@@ -114,8 +114,7 @@ private:
     std::int64_t lastFrameChangeTimeUs_ = 0;
     /** Zeit die gewartet wird bis die Eingabe ausgeführt wird.
      * **/
-    static constexpr std::int64_t refreshDelayUs =
-        300000;
+    static constexpr std::int64_t refreshDelayUs =0;
 };
 
 } // namespace sticky_lotus_sticky
