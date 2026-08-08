@@ -24,17 +24,25 @@ namespace sticky_lotus::app {
 
     void Application::tick()
     {
-        const input::InputFrame inputFrame =
+        const input::InputFrame input =
             input_.poll();
 
-        screenManager_.handleInput(
-            inputFrame
-        );
-
-        canvas_.beginFrame();
+        if (
+            input.gesture.gesture !=
+                input::TouchGesture::None ||
+            input.buttons.leftPressed ||
+            input.buttons.centerPressed ||
+            input.buttons.rightPressed ||
+            input.cancelPressed
+        ) {
+            screenManager_.handleInput(
+                input
+            );
+        }
+    }
+    void Application::draw()
+    {
         screenManager_.draw();
-        canvas_.endFrame();
-        canvas_.flush();
     }
 
     void Application::setBatteryStatus(

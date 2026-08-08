@@ -9,8 +9,8 @@
 #include "sticky_lotus/commander/CommanderDamageDraft.h"
 #include "sticky_lotus/ui/ImageRenderer.h"
 
-namespace sticky_lotus::app {
-
+namespace sticky_lotus::app
+{
     /**
      * Zentrale plattformunabhängige Anwendung.
      */
@@ -28,6 +28,8 @@ namespace sticky_lotus::app {
          */
         void tick();
 
+        void draw();
+
         void setBatteryStatus(
             int batteryPercent,
             bool charging
@@ -44,7 +46,5 @@ namespace sticky_lotus::app {
 
         ui::AppRenderer renderer_;
         screens::ScreenManager screenManager_;
-
     };
-
 } // namespace sticky_lotus::app

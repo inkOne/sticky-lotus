@@ -15,13 +15,11 @@ void SettingsScreen::handleInput(
     const input::InputFrame& inputFrame
 )
 {
-    // Escape beziehungsweise Abbrechen kehrt zum Spiel zurück.
     if (inputFrame.cancelPressed) {
         context_.navigation.showGame();
         return;
     }
 
-    // Die mittlere Sticky-Taste schließt ebenfalls die Settings.
     if (inputFrame.buttons.centerPressed) {
         context_.navigation.showGame();
         return;
@@ -44,6 +42,15 @@ void SettingsScreen::processTap(
     const ui::AppRenderer& renderer =
         context_.renderer;
 
+    auto redraw = [&]()
+    {
+        context_.renderer.drawSettings(
+            context_.game
+        );
+
+        context_.renderer.flush();
+    };
+
     if (
         renderer
             .getCloseButtonRectangle()
@@ -61,6 +68,8 @@ void SettingsScreen::processTap(
         context_.game.setPlayerMode(
             PlayerMode::TwoPlayers
         );
+
+        redraw();
         return;
     }
 
@@ -72,6 +81,8 @@ void SettingsScreen::processTap(
         context_.game.setPlayerMode(
             PlayerMode::FourPlayers
         );
+
+        redraw();
         return;
     }
 
@@ -80,7 +91,11 @@ void SettingsScreen::processTap(
             .getMultiplayer40Rectangle()
             .contains(position)
     ) {
-        context_.game.setMultiplayerStartingLife(40);
+        context_.game.setMultiplayerStartingLife(
+            40
+        );
+
+        redraw();
         return;
     }
 
@@ -89,7 +104,11 @@ void SettingsScreen::processTap(
             .getMultiplayer30Rectangle()
             .contains(position)
     ) {
-        context_.game.setMultiplayerStartingLife(30);
+        context_.game.setMultiplayerStartingLife(
+            30
+        );
+
+        redraw();
         return;
     }
 
@@ -98,11 +117,14 @@ void SettingsScreen::processTap(
             .getMultiplayer20Rectangle()
             .contains(position)
     ) {
-        context_.game.setMultiplayerStartingLife(20);
+        context_.game.setMultiplayerStartingLife(
+            20
+        );
+
+        redraw();
         return;
     }
 
-    // Eigener Multiplayer-Wert folgt später.
     if (
         renderer
             .getMultiplayerEditRectangle()
@@ -116,7 +138,11 @@ void SettingsScreen::processTap(
             .getTwoPlayer20Rectangle()
             .contains(position)
     ) {
-        context_.game.setTwoPlayerStartingLife(20);
+        context_.game.setTwoPlayerStartingLife(
+            20
+        );
+
+        redraw();
         return;
     }
 
@@ -125,7 +151,11 @@ void SettingsScreen::processTap(
             .getTwoPlayer30Rectangle()
             .contains(position)
     ) {
-        context_.game.setTwoPlayerStartingLife(30);
+        context_.game.setTwoPlayerStartingLife(
+            30
+        );
+
+        redraw();
         return;
     }
 
@@ -134,7 +164,11 @@ void SettingsScreen::processTap(
             .getTwoPlayer40Rectangle()
             .contains(position)
     ) {
-        context_.game.setTwoPlayerStartingLife(40);
+        context_.game.setTwoPlayerStartingLife(
+            40
+        );
+
+        redraw();
         return;
     }
 
@@ -146,27 +180,25 @@ void SettingsScreen::processTap(
         return;
     }
 
-
     if (
         renderer
             .getResetButtonRectangle()
             .contains(position)
     ) {
         context_.game.reset();
+
         context_.navigation.showGame();
         return;
     }
+
     if (
         renderer
             .getDoneButtonRectangle()
             .contains(position)
     ) {
-            context_.navigation.showGame();
-            return;
-
+        context_.navigation.showGame();
+        return;
     }
-
-
 }
 
 void SettingsScreen::draw()

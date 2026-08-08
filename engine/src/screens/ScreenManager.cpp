@@ -63,6 +63,28 @@ namespace sticky_lotus::screens {
         previousScreen_ = currentScreenId;
 
         currentScreen().onEnter();
+
+        /*
+         * Bei einem echten Screenwechsel muss der neue Screen
+         * einmal vollständig in den Framebuffer gezeichnet werden.
+         *
+         * Das betrifft:
+         *
+         * Game -> Settings
+         * Game -> Poison
+         * Game -> Commander Damage
+         * Poison -> Game
+         * Commander Damage -> Game
+         * Settings -> Game
+         */
+        currentScreen().draw();
+
+        /*
+         * Der Frame wird nur vorgemerkt.
+         * StickyCanvas::serviceRefresh() übernimmt später
+         * den tatsächlichen E-Paper-Refresh.
+         */
+        context_.renderer.flush();
     }
 
     void ScreenManager::handleInput(
