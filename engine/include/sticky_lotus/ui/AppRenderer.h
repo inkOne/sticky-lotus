@@ -145,7 +145,12 @@ namespace sticky_lotus::ui
             const commander::CommanderDamageDraft& draft,
             std::size_t playerIndex
         );
+        void drawLifeCounterRegion(
+            const GameState& game,
+            std::size_t playerIndex
+        );
         void flush();
+
     private:
         Canvas& canvas_;
         ImageRenderer& imageRenderer_;

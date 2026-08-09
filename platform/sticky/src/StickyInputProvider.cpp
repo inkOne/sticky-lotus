@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdint>
 #include <mutex>
+#include "esp_timer.h"
 
 namespace sticky_lotus_sticky {
 
@@ -170,6 +171,8 @@ void StickyInputProvider::handleTouchEvent(
                 event.points[0].x,
                 event.points[0].y
             );
+        gestureStartTimeUs_ =
+            esp_timer_get_time();
 
         lastPosition_ =
             gestureStart_;
@@ -202,11 +205,32 @@ void StickyInputProvider::handleTouchEvent(
 
         InputFrame completedFrame{};
 
+        const std::int64_t pressDurationUs =
+            esp_timer_get_time() -
+            gestureStartTimeUs_;
+
         completedFrame.gesture =
             detectGesture(
                 gestureStart_,
                 lastPosition_
             );
+
+        /*
+         * Nur ein stationärer Tap wird bei langer
+         * Betätigung zu einem LongPress.
+         *
+         * Ein Swipe bleibt also auch dann ein Swipe,
+         * wenn der Finger länger auf dem Display war.
+         */
+        if (
+            completedFrame.gesture.gesture ==
+                TouchGesture::Tap &&
+            pressDurationUs >=
+                longPressThresholdUs
+        ) {
+            completedFrame.gesture.gesture =
+                TouchGesture::LongPress;
+        }
 
         completedFrame.pointer.position =
             lastPosition_;
@@ -234,7 +258,7 @@ void StickyInputProvider::handleTouchEvent(
         ESP_LOGI(
             logTag,
             "Gesture queued: %d start=(%.0f,%.0f) "
-            "end=(%.0f,%.0f) pending=%u",
+            "end=(%.0f,%.0f) duration=%lldms pending=%u",
             static_cast<int>(
                 completedFrame.gesture.gesture
             ),
@@ -242,6 +266,9 @@ void StickyInputProvider::handleTouchEvent(
             gestureStart_.y,
             lastPosition_.x,
             lastPosition_.y,
+            static_cast<long long>(
+                pressDurationUs / 1000
+            ),
             static_cast<unsigned>(
                 pendingCount_
             )

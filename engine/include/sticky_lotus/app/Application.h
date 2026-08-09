@@ -35,7 +35,12 @@ namespace sticky_lotus::app
             bool charging
         );
         void showSleepScreen();
+        [[nodiscard]]
+        GameSnapshot createGameSnapshot() const;
 
+        bool restoreGameSnapshot(
+            const GameSnapshot& snapshot
+        );
     private:
         GameState game_;
         NavigationState navigation_;

@@ -30,7 +30,10 @@ namespace sticky_lotus::screens {
 
         bool commitOnExit_ = true;
 
-        void processTap(ui::Point position);
+        void processTap(
+            ui::Point position,
+            int step
+        );
         void leaveAndCommit();
         void leaveWithoutCommit();
     };

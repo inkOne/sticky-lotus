@@ -17,7 +17,8 @@ namespace sticky_lotus::screens
 
             case TouchGesture::Tap:
                 return TouchGesture::Tap;
-
+            case TouchGesture::LongPress:
+                return TouchGesture::Tap; // nur normal taps
             case TouchGesture::SwipeUp:
                 return TouchGesture::SwipeDown;
 
@@ -92,7 +93,11 @@ namespace sticky_lotus::screens
                 inputFrame.gesture.endPosition
             );
             break;
-
+        case TouchGesture::LongPress:
+            processTap(
+                inputFrame.gesture.endPosition
+            );
+            break;
         case TouchGesture::SwipeDown:
             context_.navigation.showGame();
             break;
@@ -121,24 +126,24 @@ namespace sticky_lotus::screens
         }
 
         const bool upsideDown =
-    context_.renderer.isPlayerUpsideDown(
-        playerIndex,
-        playerCount
-    );
+            context_.renderer.isPlayerUpsideDown(
+                playerIndex,
+                playerCount
+            );
 
         const ui::Rect physicalPlusRectangle =
             context_.renderer
-                .getPoisonPlusRectangle(
-                    playerIndex,
-                    playerCount
-                );
+                    .getPoisonPlusRectangle(
+                        playerIndex,
+                        playerCount
+                    );
 
         const ui::Rect physicalMinusRectangle =
             context_.renderer
-                .getPoisonMinusRectangle(
-                    playerIndex,
-                    playerCount
-                );
+                    .getPoisonMinusRectangle(
+                        playerIndex,
+                        playerCount
+                    );
 
         /*
          * Bei Spielern 3 und 4 sind Darstellung und Bedienrichtung

@@ -59,4 +59,17 @@ namespace sticky_lotus::app {
     {
         renderer_.drawSleepScreen();
     }
+    GameSnapshot Application::createGameSnapshot() const
+    {
+        return game_.createSnapshot();
+    }
+
+    bool Application::restoreGameSnapshot(
+        const GameSnapshot& snapshot
+    )
+    {
+        return game_.restoreSnapshot(
+            snapshot
+        );
+    }
 } // namespace sticky_lotus::app

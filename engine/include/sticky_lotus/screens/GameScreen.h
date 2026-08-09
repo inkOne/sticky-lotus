@@ -38,6 +38,9 @@ namespace sticky_lotus::screens {
         static int getLifeChange(
             ui::Point position
         );
+        void processLongPress(
+            ui::Point position
+        );
     };
 
 } // namespace sticky_lotus::screens

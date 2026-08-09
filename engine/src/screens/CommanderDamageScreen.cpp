@@ -64,10 +64,17 @@ namespace sticky_lotus::screens
         {
         case TouchGesture::Tap:
             processTap(
-                inputFrame.gesture.endPosition
+                inputFrame.gesture.endPosition,
+                1
             );
             break;
 
+        case TouchGesture::LongPress:
+            processTap(
+                inputFrame.gesture.endPosition,
+                10
+            );
+            break;
         case TouchGesture::SwipeLeft:
         case TouchGesture::SwipeRight:
             leaveAndCommit();
@@ -81,8 +88,9 @@ namespace sticky_lotus::screens
     }
 
     void CommanderDamageScreen::processTap(
-        const ui::Point position
-    )
+        const ui::Point position,
+        const int step
+        )
     {
         const std::size_t receivingPlayer =
             context_.commanderDraft.receivingPlayer();
@@ -156,7 +164,7 @@ namespace sticky_lotus::screens
             {
                 context_.commanderDraft.changeDamage(
                     attackingPlayer,
-                    -1
+                    -step
                 );
 
                 context_.renderer.drawCommanderDamage(
@@ -176,7 +184,7 @@ namespace sticky_lotus::screens
             {
                 context_.commanderDraft.changeDamage(
                     attackingPlayer,
-                    1
+                    step
                 );
 
                 context_.renderer.drawCommanderDamageRegion(

@@ -21,6 +21,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "nvs.h"
+#include "nvs_flash.h"
+
 #include <cstdint>
 
 namespace sticky_lotus_firmware
@@ -31,13 +34,31 @@ namespace sticky_lotus_firmware
             "sticky_lotus_app";
 
         /*
-         * Batteriestand einmal pro Minute aktualisieren.
+         * Persistenter Speicherbereich für den Spielstand.
+         */
+        constexpr const char* gameStateNamespace =
+            "sticky_lotus";
+
+        constexpr const char* gameStateKey =
+            "game_state";
+
+        /*
+         * Batteriestand alle fünf Minuten aktualisieren.
          */
         constexpr std::int64_t batteryUpdateIntervalUs =
-            5LL * 60LL * 1'000'000LL; //5LL =5min
+            5LL * 60LL * 1'000'000LL;
+
+        /*
+         * Vorwärtsdeklaration, weil enterDeepSleep()
+         * saveGameState() bereits verwendet.
+         */
+        esp_err_t saveGameState(
+            const sticky_lotus::app::Application& application
+        );
 
         /**
-         * Erstellt die Hardwarekonfiguration für das E-Paper-Panel.
+         * Erstellt die Hardwarekonfiguration
+         * für das E-Paper-Panel.
          */
         EpaperPanelConfig buildPanelConfig()
         {
@@ -67,12 +88,23 @@ namespace sticky_lotus_firmware
             config.sck =
                 STICKY_SHARED_SPI_CLK_PIN;
 
-            config.external_spi_bus = true;
-            config.buffer_len = STICKY_EPD_BUFFER_LEN;
-            config.busy_timeout_ms = 10000;
-            config.reset_low_ms = 2;
-            config.reset_high_ms = 50;
-            config.busy_level = 1;
+            config.external_spi_bus =
+                true;
+
+            config.buffer_len =
+                STICKY_EPD_BUFFER_LEN;
+
+            config.busy_timeout_ms =
+                10000;
+
+            config.reset_low_ms =
+                2;
+
+            config.reset_high_ms =
+                50;
+
+            config.busy_level =
+                1;
 
             return config;
         }
@@ -80,10 +112,10 @@ namespace sticky_lotus_firmware
         /**
          * Konfiguriert die Haupttaste als digitalen Eingang.
          *
-         * GPIO 4 wird als Active-Low-Taste angenommen:
+         * GPIO 4:
          *
-         * nicht gedrückt = HIGH
-         * gedrückt       = LOW
+         * HIGH = nicht gedrückt
+         * LOW  = gedrückt
          */
         esp_err_t configurePowerButton()
         {
@@ -110,7 +142,8 @@ namespace sticky_lotus_firmware
         }
 
         /**
-         * Prüft, ob die Haupttaste aktuell gedrückt ist.
+         * Prüft, ob die Haupttaste aktuell
+         * gedrückt ist.
          */
         bool isPowerButtonPressed()
         {
@@ -120,10 +153,116 @@ namespace sticky_lotus_firmware
         }
 
         /**
-         * Versetzt zuerst das E-Paper und anschließend
-         * den ESP32-S3 in den Deep Sleep.
-         *
-         * Das vorhandene E-Paper-Bild bleibt dabei sichtbar.
+         * Spielstand in NVS speichern.
+         */
+        esp_err_t saveGameState(
+            const sticky_lotus::app::Application& application
+        )
+        {
+            nvs_handle_t handle{};
+
+            esp_err_t result =
+                nvs_open(
+                    gameStateNamespace,
+                    NVS_READWRITE,
+                    &handle
+                );
+
+            if (result != ESP_OK)
+            {
+                return result;
+            }
+
+            const sticky_lotus::GameSnapshot snapshot =
+                application.createGameSnapshot();
+
+            result =
+                nvs_set_blob(
+                    handle,
+                    gameStateKey,
+                    &snapshot,
+                    sizeof(snapshot)
+                );
+
+            if (result == ESP_OK)
+            {
+                result =
+                    nvs_commit(
+                        handle
+                    );
+            }
+
+            nvs_close(
+                handle
+            );
+
+            return result;
+        }
+
+        /**
+         * Gespeicherten Spielstand aus NVS laden.
+         */
+        esp_err_t loadGameState(
+            sticky_lotus::app::Application& application
+        )
+        {
+            nvs_handle_t handle{};
+
+            esp_err_t result =
+                nvs_open(
+                    gameStateNamespace,
+                    NVS_READONLY,
+                    &handle
+                );
+
+            if (result != ESP_OK)
+            {
+                return result;
+            }
+
+            sticky_lotus::GameSnapshot snapshot{};
+
+            std::size_t size =
+                sizeof(snapshot);
+
+            result =
+                nvs_get_blob(
+                    handle,
+                    gameStateKey,
+                    &snapshot,
+                    &size
+                );
+
+            nvs_close(
+                handle
+            );
+
+            if (result != ESP_OK)
+            {
+                return result;
+            }
+
+            if (size != sizeof(snapshot))
+            {
+                return ESP_ERR_INVALID_SIZE;
+            }
+
+            if (
+                !application.restoreGameSnapshot(
+                    snapshot
+                )
+            )
+            {
+                return ESP_ERR_INVALID_STATE;
+            }
+
+            return ESP_OK;
+        }
+
+        /**
+         * Spielstand speichern, Sleep-Screen anzeigen,
+         * E-Paper schlafen legen und anschließend
+         * den ESP32-S3 in Deep Sleep versetzen.
          */
         void enterDeepSleep(
             EpaperPanel& panel,
@@ -137,13 +276,39 @@ namespace sticky_lotus_firmware
             );
 
             /*
-             * Speziellen Standby-Bildschirm in den Framebuffer zeichnen.
+             * Aktuellen Spielstand persistent sichern,
+             * bevor Display und ESP32 schlafen gehen.
+             */
+            const esp_err_t saveResult =
+                saveGameState(
+                    application
+                );
+
+            if (saveResult == ESP_OK)
+            {
+                ESP_LOGI(
+                    logTag,
+                    "Game state saved"
+                );
+            }
+            else
+            {
+                ESP_LOGE(
+                    logTag,
+                    "Could not save game state: %s",
+                    esp_err_to_name(
+                        saveResult
+                    )
+                );
+            }
+
+            /*
+             * Standby-/Sleep-Screen zeichnen.
              */
             application.showSleepScreen();
 
             /*
-             * Den Sleep-Screen sofort vollständig auf das E-Paper
-             * übertragen. Erst danach darf der Panelcontroller schlafen.
+             * Sleep-Screen sofort vollständig anzeigen.
              */
             canvas.flushImmediately();
 
@@ -153,8 +318,8 @@ namespace sticky_lotus_firmware
             );
 
             /*
-             * Displaycontroller schlafen legen.
-             * Das zuletzt dargestellte Bild bleibt auf dem E-Paper sichtbar.
+             * E-Paper-Controller schlafen legen.
+             * Das sichtbare Bild bleibt erhalten.
              */
             const esp_err_t panelSleepResult =
                 panel.Sleep();
@@ -171,8 +336,10 @@ namespace sticky_lotus_firmware
             }
 
             /*
-             * Warten, bis die Taste losgelassen wurde.
-             * Sonst könnte derselbe LOW-Pegel sofort wieder aufwecken.
+             * Taste zunächst loslassen lassen.
+             *
+             * Sonst könnte der noch aktive LOW-Pegel
+             * direkt wieder einen Wake-up verursachen.
              */
             while (isPowerButtonPressed())
             {
@@ -182,7 +349,8 @@ namespace sticky_lotus_firmware
             }
 
             /*
-             * Ein neuer LOW-Pegel auf GPIO 4 weckt den ESP32-S3 auf.
+             * Erneutes Drücken der Active-Low-Taste
+             * weckt das Gerät wieder auf.
              */
             const esp_err_t wakeupResult =
                 esp_sleep_enable_ext0_wakeup(
@@ -208,6 +376,10 @@ namespace sticky_lotus_firmware
                 "Deep sleep starting"
             );
 
+            /*
+             * Kurz warten, damit die letzte Logmeldung
+             * noch über die serielle Schnittstelle ausgegeben wird.
+             */
             vTaskDelay(
                 pdMS_TO_TICKS(100)
             );
@@ -224,6 +396,37 @@ namespace sticky_lotus_firmware
         );
 
         /*
+         * NVS initialisieren.
+         *
+         * Falls die NVS-Partition nicht mehr zur aktuellen
+         * Struktur passt oder voll ist, einmal löschen
+         * und neu initialisieren.
+         */
+        esp_err_t nvsResult =
+            nvs_flash_init();
+
+        if (
+            nvsResult == ESP_ERR_NVS_NO_FREE_PAGES ||
+            nvsResult == ESP_ERR_NVS_NEW_VERSION_FOUND
+        )
+        {
+            ESP_RETURN_ON_ERROR(
+                nvs_flash_erase(),
+                logTag,
+                "Could not erase NVS"
+            );
+
+            nvsResult =
+                nvs_flash_init();
+        }
+
+        ESP_RETURN_ON_ERROR(
+            nvsResult,
+            logTag,
+            "Could not initialize NVS"
+        );
+
+        /*
          * Haupttaste konfigurieren.
          */
         ESP_RETURN_ON_ERROR(
@@ -233,7 +436,7 @@ namespace sticky_lotus_firmware
         );
 
         /*
-         * Optional im Log anzeigen, wodurch das Gerät gestartet wurde.
+         * Anzeigen, wodurch das Gerät gestartet wurde.
          */
         const esp_sleep_wakeup_cause_t wakeupCause =
             esp_sleep_get_wakeup_cause();
@@ -316,9 +519,6 @@ namespace sticky_lotus_firmware
         /*
          * Diese Objekte leben für die gesamte Laufzeit
          * im statischen Speicher.
-         *
-         * Dadurch wird der Stack des ESP-IDF-Main-Tasks
-         * nicht unnötig belastet.
          */
         static sticky_lotus_sticky::StickyCanvas canvas(
             panel,
@@ -339,6 +539,40 @@ namespace sticky_lotus_firmware
             imageRenderer,
             inputProvider
         );
+
+        /*
+         * Gespeicherten Spielstand laden,
+         * bevor der erste Screen gezeichnet wird.
+         */
+        const esp_err_t restoreResult =
+            loadGameState(
+                application
+            );
+
+        if (restoreResult == ESP_OK)
+        {
+            ESP_LOGI(
+                logTag,
+                "Saved game state restored"
+            );
+        }
+        else if (restoreResult == ESP_ERR_NVS_NOT_FOUND)
+        {
+            ESP_LOGI(
+                logTag,
+                "No saved game state found"
+            );
+        }
+        else
+        {
+            ESP_LOGW(
+                logTag,
+                "Could not restore saved game state: %s",
+                esp_err_to_name(
+                    restoreResult
+                )
+            );
+        }
 
         /*
          * Initialen Batteriestand an die Anwendung übergeben.
@@ -362,13 +596,13 @@ namespace sticky_lotus_firmware
         }
 
         /*
-         * Ersten Bildschirm zeichnen.
+         * Ersten Screen auf Basis des jetzt gegebenenfalls
+         * wiederhergestellten GameState zeichnen.
          */
         application.draw();
 
         /*
-         * Beim Start direkt aktualisieren und nicht auf die
-         * verzögerte Refresh-Logik warten.
+         * Beim Start sofort anzeigen.
          */
         canvas.flushImmediately();
 
@@ -381,8 +615,8 @@ namespace sticky_lotus_firmware
             esp_timer_get_time();
 
         /*
-         * Aktuellen Zustand übernehmen, damit ein bereits
-         * gehaltener Button beim Start nicht als neue Flanke gilt.
+         * Aktuellen Zustand übernehmen, damit eine beim Boot
+         * noch gehaltene Taste nicht direkt als neue Flanke gilt.
          */
         bool previousPowerButtonPressed =
             isPowerButtonPressed();
@@ -390,11 +624,15 @@ namespace sticky_lotus_firmware
         while (true)
         {
             /*
-             * Alle gepufferten Touch-Eingaben verarbeiten.
+             * Nicht unbegrenzt viele Touch-Events pro Zyklus
+             * verarbeiten, damit Idle-Task und Watchdog
+             * ausreichend CPU-Zeit bekommen.
              */
-            constexpr std::size_t maximumInputsPerCycle = 4;
+            constexpr std::size_t maximumInputsPerCycle =
+                4;
 
-            std::size_t processedInputs = 0;
+            std::size_t processedInputs =
+                0;
 
             while (
                 inputProvider.hasPendingInput() &&
@@ -402,10 +640,11 @@ namespace sticky_lotus_firmware
             )
             {
                 application.tick();
+
                 ++processedInputs;
 
-                /*,
-                 * Scheduler und Idle-Task kurz zum Zug kommen lassen.
+                /*
+                 * Scheduler kurz zum Zug kommen lassen.
                  */
                 taskYIELD();
             }
@@ -417,10 +656,7 @@ namespace sticky_lotus_firmware
                 isPowerButtonPressed();
 
             /*
-             * Nur auf die neue Druckflanke reagieren:
-             *
-             * vorher nicht gedrückt
-             * jetzt gedrückt
+             * Nur auf die neue Druckflanke reagieren.
              */
             if (
                 powerButtonPressed &&
@@ -441,7 +677,7 @@ namespace sticky_lotus_firmware
                 esp_timer_get_time();
 
             /*
-             * Batteriestand regelmäßig aktualisieren.
+             * Batteriestand alle fünf Minuten aktualisieren.
              */
             if (
                 currentTime - lastBatteryUpdate >=
@@ -461,11 +697,10 @@ namespace sticky_lotus_firmware
                     );
 
                     /*
-                     * Batteriewert erneut in den Framebuffer zeichnen.
-                     * Der tatsächliche Panel-Refresh erfolgt später
-                     * über serviceRefresh().
+                     * Batteriestatus in den aktuellen Framebuffer
+                     * übernehmen.
                      */
-                    application.tick();
+                    application.draw();
 
                     ESP_LOGI(
                         logTag,
@@ -493,7 +728,7 @@ namespace sticky_lotus_firmware
             }
 
             /*
-             * Vorgemerkten E-Paper-Refresh ausführen,
+             * Vorgemerkten E-Paper-Refresh durchführen,
              * sobald die konfigurierte Ruhezeit abgelaufen ist.
              */
             canvas.serviceRefresh();

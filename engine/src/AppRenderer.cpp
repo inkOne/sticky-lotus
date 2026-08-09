@@ -64,9 +64,9 @@ namespace sticky_lotus::ui
             );
 
         canvas_.fillRect(
-    playerArea,
-    Ink::White
-);
+            playerArea,
+            Ink::White
+        );
 
         drawPlayer(
             game,
@@ -264,6 +264,7 @@ namespace sticky_lotus::ui
             );
         }
     }
+
     Rect AppRenderer::getBatteryRectangle() const
     {
         return {
@@ -305,6 +306,7 @@ namespace sticky_lotus::ui
          */
         canvas_.flush();
     }
+
     void AppRenderer::drawPixelSkull(
         const Rect& area,
         const float rotationDegrees
@@ -1159,6 +1161,7 @@ namespace sticky_lotus::ui
     {
         canvas_.flush();
     }
+
     void AppRenderer::drawCommanderDamage(
         const GameState& game,
         const commander::CommanderDamageDraft& draft
@@ -1207,7 +1210,6 @@ namespace sticky_lotus::ui
         redrawStatusOverlay(
             fullScreen
         );
-
     }
 
     void AppRenderer::drawPoison(
@@ -1252,263 +1254,339 @@ namespace sticky_lotus::ui
         });
     }
 
-
-void AppRenderer::drawCommanderDamageRegion(
+    void AppRenderer::drawLifeCounterRegion(
     const GameState& game,
-    const commander::CommanderDamageDraft& draft,
     const std::size_t playerIndex
 )
-{
-    if (!draft.isActive())
     {
-        return;
-    }
+        const std::size_t playerCount =
+            game.getPlayerCount();
 
-    const std::size_t playerCount =
-        draft.playerCount();
-
-    if (playerIndex >= playerCount)
-    {
-        return;
-    }
-
-    const std::size_t receivingPlayer =
-        draft.receivingPlayer();
-
-    const Rect playerArea =
-        tableLayout_.playerArea(
-            playerIndex,
-            playerCount
-        );
-
-    /*
-     * Orientierung des tatsächlich gezeichneten Spielerfeldes.
-     */
-    const bool upsideDown =
-        tableLayout_.isUpsideDown(
-            playerIndex,
-            playerCount
-        );
-
-    const float rotation =
-        upsideDown
-            ? 180.0F
-            : 0.0F;
-
-    /*
-     * Nur dieses Spielerfeld im Framebuffer löschen.
-     */
-    canvas_.fillRect(
-        playerArea,
-        Ink::White
-    );
-
-    canvas_.drawRect(
-        playerArea,
-        2.0F,
-        Ink::Black
-    );
-
-    /*
-     * Empfänger des Commander Damage.
-     */
-    if (playerIndex == receivingPlayer)
-    {
-        if (draft.isLethal())
+        if (playerIndex >= playerCount)
         {
-            drawPixelSkull(
-                {
-                    playerArea.x +
+            return;
+        }
+
+        const Rect lifeArea =
+            tableLayout_.counterArea(
+                playerIndex,
+                playerCount
+            );
+
+        const bool upsideDown =
+            tableLayout_.isUpsideDown(
+                playerIndex,
+                playerCount
+            );
+
+        const float rotation =
+            upsideDown ? 180.0F : 0.0F;
+
+        /*
+         * Nur einen etwas kleineren inneren Bereich löschen.
+         * Dadurch bleiben die Trennlinien der Spielerfelder erhalten.
+         */
+        constexpr float horizontalInset = 10.0F;
+        constexpr float verticalInset = 8.0F;
+
+        const Rect lifeRedrawArea = {
+            lifeArea.x + horizontalInset,
+            lifeArea.y + verticalInset,
+            lifeArea.width -
+                horizontalInset * 2.0F,
+            lifeArea.height -
+                verticalInset * 2.0F
+        };
+
+        /*
+         * Alte Zahl nur im inneren Bereich entfernen.
+         */
+        canvas_.fillRect(
+            lifeRedrawArea,
+            Ink::White
+        );
+
+        /*
+         * Neue Zahl weiterhin im ursprünglichen lifeArea zeichnen,
+         * damit Position und Zentrierung identisch bleiben.
+         */
+        canvas_.drawText(
+            std::to_string(
+                game.getPlayer(playerIndex).life
+            ),
+            lifeArea,
+            90,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
+
+        /*
+         * Nur den tatsächlich veränderten Bereich markieren.
+         */
+        canvas_.invalidate(
+            lifeRedrawArea
+        );
+
+        canvas_.flush();
+    }
+
+    void AppRenderer::drawCommanderDamageRegion(
+        const GameState& game,
+        const commander::CommanderDamageDraft& draft,
+        const std::size_t playerIndex
+    )
+    {
+        if (!draft.isActive())
+        {
+            return;
+        }
+
+        const std::size_t playerCount =
+            draft.playerCount();
+
+        if (playerIndex >= playerCount)
+        {
+            return;
+        }
+
+        const std::size_t receivingPlayer =
+            draft.receivingPlayer();
+
+        const Rect playerArea =
+            tableLayout_.playerArea(
+                playerIndex,
+                playerCount
+            );
+
+        /*
+         * Orientierung des tatsächlich gezeichneten Spielerfeldes.
+         */
+        const bool upsideDown =
+            tableLayout_.isUpsideDown(
+                playerIndex,
+                playerCount
+            );
+
+        const float rotation =
+            upsideDown
+                ? 180.0F
+                : 0.0F;
+
+        /*
+         * Nur dieses Spielerfeld im Framebuffer löschen.
+         */
+        canvas_.fillRect(
+            playerArea,
+            Ink::White
+        );
+
+        canvas_.drawRect(
+            playerArea,
+            2.0F,
+            Ink::Black
+        );
+
+        /*
+         * Empfänger des Commander Damage.
+         */
+        if (playerIndex == receivingPlayer)
+        {
+            if (draft.isLethal())
+            {
+                drawPixelSkull(
+                    {
+                        playerArea.x +
                         playerArea.width / 2.0F -
                         50.0F,
 
-                    playerArea.y +
+                        playerArea.y +
                         playerArea.height / 2.0F -
                         50.0F,
 
-                    100.0F,
-                    100.0F
-                },
-                rotation
-            );
+                        100.0F,
+                        100.0F
+                    },
+                    rotation
+                );
 
-            canvas_.drawText(
-                "LETHAL",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y +
+                canvas_.drawText(
+                    "LETHAL",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y +
                         playerArea.height -
                         55.0F,
-                    playerArea.width - 40.0F,
-                    35.0F
-                },
-                18,
-                Ink::Black,
-                TextAlignment::Center,
-                rotation
-            );
-        }
-        else
-        {
-            canvas_.drawText(
-                "COMMANDER",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y + 35.0F,
-                    playerArea.width - 40.0F,
-                    35.0F
-                },
-                22,
-                Ink::Black,
-                TextAlignment::Center,
-                rotation
-            );
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    18,
+                    Ink::Black,
+                    TextAlignment::Center,
+                    rotation
+                );
+            }
+            else
+            {
+                canvas_.drawText(
+                    "COMMANDER",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y + 35.0F,
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    22,
+                    Ink::Black,
+                    TextAlignment::Center,
+                    rotation
+                );
 
-            canvas_.drawText(
-                "DAMAGE",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y + 72.0F,
-                    playerArea.width - 40.0F,
-                    35.0F
-                },
-                22,
-                Ink::Black,
-                TextAlignment::Center,
-                rotation
-            );
+                canvas_.drawText(
+                    "DAMAGE",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y + 72.0F,
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    22,
+                    Ink::Black,
+                    TextAlignment::Center,
+                    rotation
+                );
 
-            canvas_.drawText(
-                "Swipe to save",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y +
+                canvas_.drawText(
+                    "Swipe to save",
+                    {
+                        playerArea.x + 20.0F,
+                        playerArea.y +
                         playerArea.height -
                         70.0F,
-                    playerArea.width - 40.0F,
-                    35.0F
-                },
-                16,
-                Ink::DarkGray,
-                TextAlignment::Center,
-                rotation
+                        playerArea.width - 40.0F,
+                        35.0F
+                    },
+                    16,
+                    Ink::DarkGray,
+                    TextAlignment::Center,
+                    rotation
+                );
+            }
+
+            /*
+             * Wichtig:
+             * Nicht nur invalidate(), sondern den Refresh
+             * auch wirklich vormerken.
+             *
+             * Gleichzeitig werden Batterie/Menu-Overlay
+             * wieder über das Spielerfeld gezeichnet.
+             */
+            redrawStatusOverlay(
+                playerArea
             );
+
+            return;
         }
 
         /*
-         * Wichtig:
-         * Nicht nur invalidate(), sondern den Refresh
-         * auch wirklich vormerken.
+         * Damage-Quellspieler.
+         */
+        const Rect physicalMinusArea =
+            tableLayout_.minusArea(
+                playerIndex,
+                playerCount
+            );
+
+        const Rect physicalPlusArea =
+            tableLayout_.plusArea(
+                playerIndex,
+                playerCount
+            );
+
+        /*
+         * Bei gedrehten Spielern 3/4 werden die sichtbaren
+         * Positionen von Plus und Minus vertauscht.
+         */
+        const Rect minusArea =
+            upsideDown
+                ? physicalPlusArea
+                : physicalMinusArea;
+
+        const Rect plusArea =
+            upsideDown
+                ? physicalMinusArea
+                : physicalPlusArea;
+
+        const Rect damageArea =
+            tableLayout_.counterArea(
+                playerIndex,
+                playerCount
+            );
+
+        /*
+         * Ganz wichtig:
+         * Hier wird der aktuelle DRAFT-Wert angezeigt,
+         * nicht der bereits gespeicherte GameState-Wert.
          *
-         * Gleichzeitig werden Batterie/Menu-Overlay
-         * wieder über das Spielerfeld gezeichnet.
+         * Dadurch sieht man die Änderung schon vor dem
+         * Verlassen des Commander-Damage-Screens.
+         */
+        canvas_.drawText(
+            std::to_string(
+                draft.damageFrom(
+                    playerIndex
+                )
+            ),
+            damageArea,
+            76,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
+
+        canvas_.drawText(
+            "-",
+            minusArea,
+            42,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
+        );
+
+        canvas_.drawText(
+            "+",
+            plusArea,
+            42,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
+        );
+
+        canvas_.drawText(
+            std::to_string(
+                playerIndex + 1
+            ),
+            {
+                playerArea.x + 12.0F,
+                playerArea.y + 10.0F,
+                40.0F,
+                28.0F
+            },
+            16,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
+        );
+
+        /*
+         * Auch hier Refresh wirklich vormerken.
          */
         redrawStatusOverlay(
             playerArea
         );
 
-        return;
+        (void)game;
     }
-
-    /*
-     * Damage-Quellspieler.
-     */
-    const Rect physicalMinusArea =
-        tableLayout_.minusArea(
-            playerIndex,
-            playerCount
-        );
-
-    const Rect physicalPlusArea =
-        tableLayout_.plusArea(
-            playerIndex,
-            playerCount
-        );
-
-    /*
-     * Bei gedrehten Spielern 3/4 werden die sichtbaren
-     * Positionen von Plus und Minus vertauscht.
-     */
-    const Rect minusArea =
-        upsideDown
-            ? physicalPlusArea
-            : physicalMinusArea;
-
-    const Rect plusArea =
-        upsideDown
-            ? physicalMinusArea
-            : physicalPlusArea;
-
-    const Rect damageArea =
-        tableLayout_.counterArea(
-            playerIndex,
-            playerCount
-        );
-
-    /*
-     * Ganz wichtig:
-     * Hier wird der aktuelle DRAFT-Wert angezeigt,
-     * nicht der bereits gespeicherte GameState-Wert.
-     *
-     * Dadurch sieht man die Änderung schon vor dem
-     * Verlassen des Commander-Damage-Screens.
-     */
-    canvas_.drawText(
-        std::to_string(
-            draft.damageFrom(
-                playerIndex
-            )
-        ),
-        damageArea,
-        76,
-        Ink::Black,
-        TextAlignment::Center,
-        rotation
-    );
-
-    canvas_.drawText(
-        "-",
-        minusArea,
-        42,
-        Ink::DarkGray,
-        TextAlignment::Center,
-        rotation
-    );
-
-    canvas_.drawText(
-        "+",
-        plusArea,
-        42,
-        Ink::DarkGray,
-        TextAlignment::Center,
-        rotation
-    );
-
-    canvas_.drawText(
-        std::to_string(
-            playerIndex + 1
-        ),
-        {
-            playerArea.x + 12.0F,
-            playerArea.y + 10.0F,
-            40.0F,
-            28.0F
-        },
-        16,
-        Ink::DarkGray,
-        TextAlignment::Center,
-        rotation
-    );
-
-    /*
-     * Auch hier Refresh wirklich vormerken.
-     */
-    redrawStatusOverlay(
-        playerArea
-    );
-
-    (void)game;
-}
 
     bool AppRenderer::isPlayerUpsideDown(
         const std::size_t playerIndex,

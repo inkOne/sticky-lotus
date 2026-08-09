@@ -17,6 +17,9 @@ namespace
         case TouchGesture::Tap:
             return TouchGesture::Tap;
 
+        case TouchGesture::LongPress:
+            return TouchGesture::LongPress;
+
         case TouchGesture::SwipeUp:
             return TouchGesture::SwipeDown;
 
@@ -109,7 +112,11 @@ namespace sticky_lotus::screens
                 inputFrame.gesture.endPosition
             );
             break;
-
+        case TouchGesture::LongPress:
+            processLongPress(
+                inputFrame.gesture.endPosition
+            );
+            break;
         case TouchGesture::SwipeLeft:
         case TouchGesture::SwipeRight:
             {
@@ -146,6 +153,7 @@ namespace sticky_lotus::screens
             }
 
         case TouchGesture::SwipeDown:
+
         case TouchGesture::None:
             break;
         }
@@ -204,7 +212,61 @@ namespace sticky_lotus::screens
          * Nur das tatsächlich geänderte Spielerfeld
          * im Framebuffer neu zeichnen.
          */
-        context_.renderer.drawPlayerRegion(
+        /*context_.renderer.drawPlayerRegion(
+            context_.game,
+            playerIndex
+        );*/
+        context_.renderer.drawLifeCounterRegion(
+            context_.game,
+            playerIndex
+        );
+    }
+
+    void GameScreen::processLongPress(
+        const ui::Point position
+    )
+    {
+        const std::size_t playerIndex =
+            getPlayerIndex(
+                position
+            );
+
+        if (
+            playerIndex >=
+            context_.game.getPlayerCount()
+        )
+        {
+            return;
+        }
+
+        int lifeChange =
+            getLifeChange(
+                position
+            );
+
+        const bool upsideDown =
+            context_.renderer.isPlayerUpsideDown(
+                playerIndex,
+                context_.game.getPlayerCount()
+            );
+
+        if (upsideDown)
+        {
+            lifeChange =
+                -lifeChange;
+        }
+
+        /*
+         * Aus +/-1 wird +/-10.
+         */
+        lifeChange *= 10;
+
+        context_.game.changeLife(
+            playerIndex,
+            lifeChange
+        );
+
+        context_.renderer.drawLifeCounterRegion(
             context_.game,
             playerIndex
         );

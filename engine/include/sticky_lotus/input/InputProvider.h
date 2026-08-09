@@ -26,6 +26,7 @@ namespace sticky_lotus::input {
     {
         None,
         Tap,
+        LongPress,
         SwipeLeft,
         SwipeRight,
         SwipeUp,

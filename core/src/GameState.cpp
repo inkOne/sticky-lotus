@@ -305,7 +305,7 @@ int GameState::getPoison(
     return players_[playerIndex].poison;
 }
 
-GameSnapshot GameState::createSnapshot() const
+    GameSnapshot GameState::createSnapshot() const
 {
     GameSnapshot snapshot{};
 
@@ -314,9 +314,6 @@ GameSnapshot GameState::createSnapshot() const
 
     snapshot.settings =
         settings_;
-
-    snapshot.commanderDamage =
-        commanderDamage_;
 
     for (
         std::size_t playerIndex = 0;
@@ -329,72 +326,68 @@ GameSnapshot GameState::createSnapshot() const
         snapshot.poison[playerIndex] =
             players_[playerIndex].poison;
 
-        snapshot.eliminationReasons[
-            playerIndex
-        ] =
+        snapshot.eliminationReasons[playerIndex] =
             players_[playerIndex]
                 .lastEliminationReason;
     }
 
+    snapshot.commanderDamage =
+        commanderDamage_;
+
     return snapshot;
 }
 
-void GameState::restoreSnapshot(
-    const GameSnapshot& snapshot
-)
+    bool GameState::restoreSnapshot(
+        const GameSnapshot& snapshot
+    )
 {
     if (
         snapshot.magic !=
         GameSnapshot::validMagic
     ) {
-        return;
+        return false;
     }
 
     settings_ =
         snapshot.settings;
-
-    commanderDamage_ =
-        snapshot.commanderDamage;
 
     for (
         std::size_t playerIndex = 0;
         playerIndex < maximumPlayerCount;
         ++playerIndex
     ) {
-        Player& player =
-            players_[playerIndex];
+        players_[playerIndex].life =
+            snapshot.life[playerIndex];
 
-        player.life =
-            std::max(
-                0,
-                snapshot.life[playerIndex]
-            );
+        players_[playerIndex].poison =
+            snapshot.poison[playerIndex];
 
-        player.poison =
-            std::max(
-                0,
-                snapshot.poison[playerIndex]
-            );
+        players_[playerIndex]
+            .lastEliminationReason =
+            snapshot.eliminationReasons[
+                playerIndex
+            ];
 
         /*
-         * Todesnachricht zunächst leeren.
-         * updateEliminationState() erzeugt bei einem
-         * ausgeschiedenen Spieler wieder eine passende Nachricht.
+         * Todestexte werden nicht persistent gespeichert.
+         * Nach Restore bei ausgeschiedenen Spielern kann
+         * wieder einer erzeugt werden.
          */
-        player.deathMessage.clear();
-
-        /*
-         * Auf None setzen, damit updateEliminationState()
-         * einen Ausscheidungszustand als neuen Übergang erkennt.
-         */
-        player.lastEliminationReason =
-            EliminationReason::None;
+        players_[playerIndex]
+            .deathMessage
+            .clear();
 
         updateEliminationState(
             playerIndex
         );
     }
+
+    commanderDamage_ =
+        snapshot.commanderDamage;
+
+    return true;
 }
+
 
 void GameState::updateEliminationState(
     const std::size_t playerIndex

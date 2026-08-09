@@ -140,7 +140,7 @@ public:
     [[nodiscard]]
     GameSnapshot createSnapshot() const;
 
-    void restoreSnapshot(
+    bool restoreSnapshot(
         const GameSnapshot& snapshot
     );
 
