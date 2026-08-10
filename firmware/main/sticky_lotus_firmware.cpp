@@ -10,6 +10,8 @@
 #include "sticky_board.h"
 #include "sticky_board_config.h"
 
+#include "sticky_lotus_1bit.h"
+
 #include "driver/gpio.h"
 
 #include "esp_check.h"
@@ -25,6 +27,7 @@
 #include "nvs_flash.h"
 
 #include <cstdint>
+
 
 namespace sticky_lotus_firmware
 {
@@ -303,9 +306,21 @@ namespace sticky_lotus_firmware
             }
 
             /*
-             * Standby-/Sleep-Screen zeichnen.
+             * Fertigen 1-Bit-Sleep-Screen direkt in den
+             * Sticky-Framebuffer übernehmen.
              */
-            application.showSleepScreen();
+            canvas.drawMonochromeBitmap(
+                sticky_lotus_fb,
+                STICKY_LOTUS_FB_WIDTH,
+                STICKY_LOTUS_FB_HEIGHT,
+                STICKY_LOTUS_FB_BYTES_PER_ROW
+            );
+
+            /*
+             * Das Bild sofort vollständig auf das E-Paper übertragen.
+             * Danach darf der Displaycontroller schlafen.
+             */
+            canvas.flushImmediately();
 
             /*
              * Sleep-Screen sofort vollständig anzeigen.

@@ -1658,7 +1658,7 @@ namespace sticky_lotus::ui
             drawChargingBolt({
                 static_cast<float>(
                     screenWidth
-                ) - 60.0F, //76.0F,
+                ) - 65.0F, //76.0F,
 
                 static_cast<float>(
                     screenHeight

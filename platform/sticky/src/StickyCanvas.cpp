@@ -499,4 +499,77 @@ namespace sticky_lotus_sticky
         dirty_ = false;
         refreshPending_ = false;
     }
+    void StickyCanvas::drawMonochromeBitmap(
+    const std::uint8_t* bitmap,
+    const int bitmapWidth,
+    const int bitmapHeight,
+    const int bytesPerRow
+)
+    {
+        if (
+            bitmap == nullptr ||
+            bitmapWidth <= 0 ||
+            bitmapHeight <= 0 ||
+            bytesPerRow <= 0
+        )
+        {
+            return;
+        }
+
+        /*
+         * Nicht außerhalb des tatsächlichen Displays zeichnen.
+         */
+        const int drawWidth =
+            std::min(
+                bitmapWidth,
+                width_
+            );
+
+        const int drawHeight =
+            std::min(
+                bitmapHeight,
+                height_
+            );
+
+        /*
+         * Asset-Format:
+         *
+         * row-major
+         * MSB-first
+         *
+         * 1 = weiß
+         * 0 = schwarz
+         */
+        for (int y = 0; y < drawHeight; ++y)
+        {
+            for (int x = 0; x < drawWidth; ++x)
+            {
+                const int byteIndex =
+                    y * bytesPerRow +
+                    x / 8;
+
+                const int bitIndex =
+                    7 - (x % 8);
+
+                const bool white =
+                    (
+                        bitmap[byteIndex] >>
+                        bitIndex
+                    ) & 0x01;
+
+                setPixel(
+                    x,
+                    y,
+                    white
+                        ? Ink::White
+                        : Ink::Black
+                );
+            }
+        }
+
+        /*
+         * Der komplette Framebuffer wurde verändert.
+         */
+        dirty_ = true;
+    }
 } // namespace sticky_lotus_sticky

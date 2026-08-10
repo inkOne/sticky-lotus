@@ -79,7 +79,7 @@ namespace sticky_lotus_sticky {
         std::int64_t gestureStartTimeUs_ = 0;
 
         static constexpr std::int64_t longPressThresholdUs =
-            500'000;
+            250'000;
     };
 
 } // namespace sticky_lotus_sticky
