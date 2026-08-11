@@ -203,19 +203,72 @@ namespace sticky_lotus::screens
                 -lifeChange;
         }
 
+        const int currentLife =
+            context_.game.getPlayer(
+                playerIndex
+            ).life;
+
+        if (
+            currentLife == 0 &&
+            lifeChange < 0
+        )
+        {
+            return;
+        }
+
+        const bool wasEliminated =
+    context_.game.isPlayerEliminated(
+        playerIndex
+    );
+
+        const int lifeBefore =
+            context_.game.getPlayer(
+                playerIndex
+            ).life;
+
         context_.game.changeLife(
             playerIndex,
             lifeChange
         );
 
+        const int lifeAfter =
+            context_.game.getPlayer(
+                playerIndex
+            ).life;
+
+        const bool isEliminated =
+            context_.game.isPlayerEliminated(
+                playerIndex
+            );
+
         /*
-         * Nur das tatsächlich geänderte Spielerfeld
-         * im Framebuffer neu zeichnen.
+         * changeLife() hat die Eingabe verworfen.
+         *
+         * Das passiert z. B.:
+         * - bei Life Loss auf 0
+         * - bei Life-Änderungen nach Poison-Tod
+         * - bei Life-Änderungen nach Commander-Tod
+         *
+         * Dann überhaupt nichts neu zeichnen.
          */
-        /*context_.renderer.drawPlayerRegion(
-            context_.game,
-            playerIndex
-        );*/
+        if (lifeBefore == lifeAfter)
+        {
+            return;
+        }
+
+        /*
+         * Wechsel lebend <-> ausgeschieden:
+         * vollständiger Redraw und Full Refresh.
+         */
+        if (wasEliminated != isEliminated)
+        {
+            context_.renderer.drawGameImmediately(
+                context_.game
+            );
+
+            return;
+        }
+
         context_.renderer.drawLifeCounterRegion(
             context_.game,
             playerIndex
@@ -260,11 +313,72 @@ namespace sticky_lotus::screens
          * Aus +/-1 wird +/-10.
          */
         lifeChange *= 10;
+        const int currentLife =
+            context_.game.getPlayer(
+                playerIndex
+            ).life;
+
+        if (
+            currentLife == 0 &&
+            lifeChange < 0
+        )
+        {
+            return;
+        }
+
+
+        const bool wasEliminated =
+    context_.game.isPlayerEliminated(
+        playerIndex
+    );
+
+        const int lifeBefore =
+            context_.game.getPlayer(
+                playerIndex
+            ).life;
 
         context_.game.changeLife(
             playerIndex,
             lifeChange
         );
+
+        const int lifeAfter =
+            context_.game.getPlayer(
+                playerIndex
+            ).life;
+
+        const bool isEliminated =
+            context_.game.isPlayerEliminated(
+                playerIndex
+            );
+
+        /*
+         * changeLife() hat die Eingabe verworfen.
+         *
+         * Das passiert z. B.:
+         * - bei Life Loss auf 0
+         * - bei Life-Änderungen nach Poison-Tod
+         * - bei Life-Änderungen nach Commander-Tod
+         *
+         * Dann überhaupt nichts neu zeichnen.
+         */
+        if (lifeBefore == lifeAfter)
+        {
+            return;
+        }
+
+        /*
+         * Wechsel lebend <-> ausgeschieden:
+         * vollständiger Redraw und Full Refresh.
+         */
+        if (wasEliminated != isEliminated)
+        {
+            context_.renderer.drawGameImmediately(
+                context_.game
+            );
+
+            return;
+        }
 
         context_.renderer.drawLifeCounterRegion(
             context_.game,

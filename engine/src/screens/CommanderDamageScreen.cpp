@@ -88,121 +88,136 @@ namespace sticky_lotus::screens
     }
 
     void CommanderDamageScreen::processTap(
-        const ui::Point position,
-        const int step
-        )
+    const ui::Point position
+)
+{
+    const std::size_t defenderIndex =
+        context_.navigation.selectedPlayer();
+
+    const std::size_t playerCount =
+        context_.game.getPlayerCount();
+
+    if (defenderIndex >= playerCount)
     {
-        const std::size_t receivingPlayer =
-            context_.commanderDraft.receivingPlayer();
-
-        const std::size_t playerCount =
-            context_.commanderDraft.playerCount();
-
-        if (
-            !context_.commanderDraft.isActive() ||
-            receivingPlayer >= playerCount
-        )
-        {
-            return;
-        }
-
-        for (
-            std::size_t attackingPlayer = 0;
-            attackingPlayer < playerCount;
-            ++attackingPlayer
-        )
-        {
-            if (attackingPlayer == receivingPlayer)
-            {
-                continue;
-            }
-
-            /*
-             * Die vom Layout gelieferten Rechtecke sind die
-             * physikalischen Positionen auf dem Display.
-             */
-            const ui::Rect physicalMinusRectangle =
-                context_.renderer
-                        .getCommanderDamageMinusRectangle(
-                            attackingPlayer,
-                            playerCount
-                        );
-
-            const ui::Rect physicalPlusRectangle =
-                context_.renderer
-                        .getCommanderDamagePlusRectangle(
-                            attackingPlayer,
-                            playerCount
-                        );
-
-            /*
-             * Spieler 3 und 4 werden um 180 Grad dargestellt.
-             *
-             * Deshalb müssen auch die Funktionen hinter den
-             * sichtbaren Plus-/Minus-Flächen vertauscht werden.
-             */
-            const bool upsideDown =
-                context_.renderer.isPlayerUpsideDown(
-                    attackingPlayer,
-                    playerCount
-                );
-
-            const ui::Rect minusRectangle =
-                upsideDown
-                    ? physicalPlusRectangle
-                    : physicalMinusRectangle;
-
-            const ui::Rect plusRectangle =
-                upsideDown
-                    ? physicalMinusRectangle
-                    : physicalPlusRectangle;
-
-            /*
-             * MINUS
-             */
-            if (minusRectangle.contains(position))
-            {
-                context_.commanderDraft.changeDamage(
-                    attackingPlayer,
-                    -step
-                );
-
-                context_.renderer.drawCommanderDamage(
-                    context_.game,
-                    context_.commanderDraft
-                );
-
-                context_.renderer.flush();
-
-                return;
-            }
-
-            /*
-             * PLUS
-             */
-            if (plusRectangle.contains(position))
-            {
-                context_.commanderDraft.changeDamage(
-                    attackingPlayer,
-                    step
-                );
-
-                context_.renderer.drawCommanderDamageRegion(
-                    context_.game,
-                    context_.commanderDraft,
-                    attackingPlayer
-                );
-
-                context_.renderer.drawCommanderDamageRegion(
-                    context_.game,
-                    context_.commanderDraft,
-                    receivingPlayer
-                );
-
-                return;
-            }
-        }
+        return;
     }
+
+    const std::size_t attackerIndex =
+        draft_.selectedAttacker();
+
+    if (
+        attackerIndex >= playerCount ||
+        attackerIndex == defenderIndex
+    )
+    {
+        return;
+    }
+
+    const ui::Rect playerArea =
+        context_.renderer.getPlayerRectangle(
+            defenderIndex,
+            playerCount
+        );
+
+    /*
+     * Nur Taps innerhalb des ausgewählten
+     * Spielerfeldes berücksichtigen.
+     */
+    if (!playerArea.contains(position))
+    {
+        return;
+    }
+
+    const bool upsideDown =
+        context_.renderer.isPlayerUpsideDown(
+            defenderIndex,
+            playerCount
+        );
+
+    /*
+     * Ganze Spielerfläche teilen:
+     *
+     * obere Hälfte  = +1 Commander Damage
+     * untere Hälfte = -1 Commander Damage
+     */
+    const float centerY =
+        playerArea.y +
+        playerArea.height / 2.0F;
+
+    int damageChange =
+        position.y < centerY
+            ? 1
+            : -1;
+
+    /*
+     * Für Spieler 3/4 Bedienrichtung umkehren.
+     */
+    if (upsideDown)
+    {
+        damageChange =
+            -damageChange;
+    }
+
+    const int damageBefore =
+        context_.game.getCommanderDamage(
+            attackerIndex,
+            defenderIndex
+        );
+
+    const bool wasEliminated =
+        context_.game.isPlayerEliminated(
+            defenderIndex
+        );
+
+    context_.game.changeCommanderDamage(
+        attackerIndex,
+        defenderIndex,
+        damageChange
+    );
+
+    const int damageAfter =
+        context_.game.getCommanderDamage(
+            attackerIndex,
+            defenderIndex
+        );
+
+    /*
+     * Keine tatsächliche Änderung, z. B.
+     * bei 0 Schaden und erneut Minus.
+     */
+    if (damageBefore == damageAfter)
+    {
+        return;
+    }
+
+    const bool isEliminated =
+        context_.game.isPlayerEliminated(
+            defenderIndex
+        );
+
+    /*
+     * Commander-Tod oder Wiederbelebung:
+     * kompletten Game-Screen neu zeichnen.
+     */
+    if (wasEliminated != isEliminated)
+    {
+        context_.renderer.drawGameImmediately(
+            context_.game
+        );
+
+        context_.navigation.showGame();
+
+        return;
+    }
+
+    /*
+     * Sonst nur Commander-Bereich neu zeichnen.
+     */
+    context_.renderer.drawCommanderDamageRegion(
+        context_.game,
+        draft_
+    );
+}
 
     void CommanderDamageScreen::leaveAndCommit()
     {

@@ -2,7 +2,6 @@
 
 #include "sticky_lotus/app/Application.h"
 #include "sticky_lotus_sticky/StickyCanvas.h"
-#include "sticky_lotus_sticky/StickyImageRenderer.h"
 #include "sticky_lotus_sticky/StickyInputProvider.h"
 
 #include "battery_service.h"
@@ -313,7 +312,14 @@ namespace sticky_lotus_firmware
                 sticky_lotus_fb,
                 STICKY_LOTUS_FB_WIDTH,
                 STICKY_LOTUS_FB_HEIGHT,
-                STICKY_LOTUS_FB_BYTES_PER_ROW
+                STICKY_LOTUS_FB_BYTES_PER_ROW,
+                sticky_lotus::ui::Rect{
+                    0.0F,
+                    0.0F,
+                    static_cast<float>(STICKY_LOTUS_FB_WIDTH),
+                    static_cast<float>(STICKY_LOTUS_FB_HEIGHT)
+                },
+                0.0F
             );
 
             /*
@@ -541,17 +547,12 @@ namespace sticky_lotus_firmware
             STICKY_EPD_HEIGHT
         );
 
-        static sticky_lotus_sticky::StickyImageRenderer
-            imageRenderer(
-                canvas
-            );
 
         static sticky_lotus_sticky::StickyInputProvider
             inputProvider;
 
         static sticky_lotus::app::Application application(
             canvas,
-            imageRenderer,
             inputProvider
         );
 

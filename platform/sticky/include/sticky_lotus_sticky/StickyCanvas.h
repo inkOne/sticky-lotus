@@ -80,8 +80,10 @@ namespace sticky_lotus_sticky
             const std::uint8_t* bitmap,
             int bitmapWidth,
             int bitmapHeight,
-            int bytesPerRow
-        );
+            int bytesPerRow,
+            const sticky_lotus::ui::Rect& targetArea,
+            float rotationDegrees
+        ) override;
 
         void flush() override;
         /**

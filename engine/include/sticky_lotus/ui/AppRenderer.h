@@ -6,7 +6,6 @@
 #include <cstddef>
 #include "sticky_lotus/commander/CommanderDamageDraft.h"
 #include "sticky_lotus/ui/TableLayout.h"
-#include "sticky_lotus/ui/ImageRenderer.h"
 
 class GameState;
 
@@ -25,15 +24,16 @@ namespace sticky_lotus::ui
         static constexpr int screenHeight = 480;
 
         AppRenderer(
-            Canvas& canvas,
-            ImageRenderer& imageRenderer
+            Canvas& canvas
         );
 
         /**
          * Zeichnet die normale Spielansicht.
          */
         void drawGame(const GameState& game);
-
+        void drawGameImmediately(
+            const GameState& game
+        );
         /**
          * Zeichnet die Settings-Ansicht.
          */
@@ -115,6 +115,11 @@ namespace sticky_lotus::ui
             std::size_t playerCount
         ) const;
 
+        Rect getPlayerRectangle(
+            std::size_t playerIndex,
+            std::size_t playerCount
+        ) const;
+
         [[nodiscard]]
         bool isPlayerUpsideDown(
             std::size_t playerIndex,
@@ -153,7 +158,6 @@ namespace sticky_lotus::ui
 
     private:
         Canvas& canvas_;
-        ImageRenderer& imageRenderer_;
         TableLayout tableLayout_;
 
         void drawPlayers(const GameState& game);

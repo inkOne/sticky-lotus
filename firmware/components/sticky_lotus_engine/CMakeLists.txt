@@ -10,6 +10,8 @@ idf_component_register(
         "../../../engine/src/screens/PoisonScreen.cpp"
     INCLUDE_DIRS
         "../../../engine/include"
+    PRIV_INCLUDE_DIRS
+        "../../../assets"
     REQUIRES
         sticky_lotus_core
 )

@@ -1,7 +1,6 @@
 idf_component_register(
         SRCS
         "../../../platform/sticky/src/StickyCanvas.cpp"
-        "../../../platform/sticky/src/StickyImageRenderer.cpp"
         "../../../platform/sticky/src/StickyInputProvider.cpp"
 
         INCLUDE_DIRS

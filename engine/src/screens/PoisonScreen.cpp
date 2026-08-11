@@ -111,8 +111,8 @@ namespace sticky_lotus::screens
     }
 
     void PoisonScreen::processTap(
-        const ui::Point position
-    )
+    const ui::Point position
+)
     {
         const std::size_t playerIndex =
             context_.navigation.selectedPlayer();
@@ -125,69 +125,69 @@ namespace sticky_lotus::screens
             return;
         }
 
+        /*
+         * Das komplette Spielerfeld ist die Touch-Fläche.
+         */
+        const ui::Rect playerArea =
+            context_.renderer.getPlayerRectangle(
+                playerIndex,
+                playerCount
+            );
+
+        /*
+         * Außerhalb des ausgewählten Spielerfeldes
+         * passiert nichts.
+         */
+        if (!playerArea.contains(position))
+        {
+            return;
+        }
+
         const bool upsideDown =
             context_.renderer.isPlayerUpsideDown(
                 playerIndex,
                 playerCount
             );
 
-        const ui::Rect physicalPlusRectangle =
-            context_.renderer
-                    .getPoisonPlusRectangle(
-                        playerIndex,
-                        playerCount
-                    );
+        /*
+         * Spielerfeld horizontal in zwei Touch-Zonen teilen.
+         *
+         * Normal aus Sicht des Spielers:
+         *
+         *     obere Hälfte = PLUS
+         *     untere Hälfte = MINUS
+         */
+        const float centerY =
+            playerArea.y +
+            playerArea.height / 2.0F;
 
-        const ui::Rect physicalMinusRectangle =
-            context_.renderer
-                    .getPoisonMinusRectangle(
-                        playerIndex,
-                        playerCount
-                    );
+        int poisonChange =
+            position.y < centerY
+                ? 1
+                : -1;
 
         /*
-         * Bei Spielern 3 und 4 sind Darstellung und Bedienrichtung
-         * um 180 Grad gedreht.
+         * Beim gegenüberliegenden Spieler ist das komplette
+         * Spielerfeld um 180° orientiert.
+         *
+         * Deshalb physische Bedienrichtung umkehren.
          */
-        const ui::Rect plusRectangle =
-            upsideDown
-                ? physicalMinusRectangle
-                : physicalPlusRectangle;
-
-        const ui::Rect minusRectangle =
-            upsideDown
-                ? physicalPlusRectangle
-                : physicalMinusRectangle;
-
-        if (plusRectangle.contains(position))
+        if (upsideDown)
         {
-            context_.game.changePoison(
-                playerIndex,
-                1
-            );
-
-            context_.renderer.drawPoisonRegion(
-                context_.game,
-                playerIndex
-            );
-
-            return;
+            poisonChange =
+                -poisonChange;
         }
 
-        if (minusRectangle.contains(position))
-        {
-            context_.game.changePoison(
-                playerIndex,
-                -1
-            );
+        context_.game.changePoison(
+            playerIndex,
+            poisonChange
+        );
 
-            context_.renderer.drawPoisonRegion(
-                context_.game,
-                playerIndex
-            );
-        }
+        context_.renderer.drawPoisonRegion(
+            context_.game,
+            playerIndex
+        );
     }
-
     void PoisonScreen::draw()
     {
         context_.renderer.drawPoison(

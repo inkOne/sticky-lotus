@@ -499,77 +499,96 @@ namespace sticky_lotus_sticky
         dirty_ = false;
         refreshPending_ = false;
     }
+
     void StickyCanvas::drawMonochromeBitmap(
     const std::uint8_t* bitmap,
     const int bitmapWidth,
     const int bitmapHeight,
-    const int bytesPerRow
+    const int bytesPerRow,
+    const Rect& targetArea,
+    const float rotationDegrees
 )
+{
+    if (
+        bitmap == nullptr ||
+        bitmapWidth <= 0 ||
+        bitmapHeight <= 0 ||
+        bytesPerRow <= 0
+    )
     {
-        if (
-            bitmap == nullptr ||
-            bitmapWidth <= 0 ||
-            bitmapHeight <= 0 ||
-            bytesPerRow <= 0
-        )
-        {
-            return;
-        }
-
-        /*
-         * Nicht außerhalb des tatsächlichen Displays zeichnen.
-         */
-        const int drawWidth =
-            std::min(
-                bitmapWidth,
-                width_
-            );
-
-        const int drawHeight =
-            std::min(
-                bitmapHeight,
-                height_
-            );
-
-        /*
-         * Asset-Format:
-         *
-         * row-major
-         * MSB-first
-         *
-         * 1 = weiß
-         * 0 = schwarz
-         */
-        for (int y = 0; y < drawHeight; ++y)
-        {
-            for (int x = 0; x < drawWidth; ++x)
-            {
-                const int byteIndex =
-                    y * bytesPerRow +
-                    x / 8;
-
-                const int bitIndex =
-                    7 - (x % 8);
-
-                const bool white =
-                    (
-                        bitmap[byteIndex] >>
-                        bitIndex
-                    ) & 0x01;
-
-                setPixel(
-                    x,
-                    y,
-                    white
-                        ? Ink::White
-                        : Ink::Black
-                );
-            }
-        }
-
-        /*
-         * Der komplette Framebuffer wurde verändert.
-         */
-        dirty_ = true;
+        return;
     }
+
+    const bool upsideDown =
+        rotationDegrees == 180.0F;
+
+    for (int sourceY = 0; sourceY < bitmapHeight; ++sourceY)
+    {
+        for (int sourceX = 0; sourceX < bitmapWidth; ++sourceX)
+        {
+            const int byteIndex =
+                sourceY * bytesPerRow +
+                sourceX / 8;
+
+            const int bitIndex =
+                7 - (sourceX % 8);
+
+            const bool white =
+                (
+                    bitmap[byteIndex] >>
+                    bitIndex
+                ) & 0x01;
+
+            int displayX =
+                sourceX;
+
+            int displayY =
+                sourceY;
+
+            if (upsideDown)
+            {
+                displayX =
+                    bitmapWidth - 1 - sourceX;
+
+                displayY =
+                    bitmapHeight - 1 - sourceY;
+            }
+
+            const int targetX =
+                static_cast<int>(
+                    targetArea.x
+                ) +
+                displayX;
+
+            const int targetY =
+                static_cast<int>(
+                    targetArea.y
+                ) +
+                displayY;
+
+            /*
+             * Nur innerhalb des Displays zeichnen.
+             */
+            if (
+                targetX < 0 ||
+                targetY < 0 ||
+                targetX >= width_ ||
+                targetY >= height_
+            )
+            {
+                continue;
+            }
+
+            setPixel(
+                targetX,
+                targetY,
+                white
+                    ? Ink::White
+                    : Ink::Black
+            );
+        }
+    }
+
+    dirty_ = true;
+}
 } // namespace sticky_lotus_sticky

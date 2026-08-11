@@ -4,20 +4,21 @@
 #include <cstddef>
 #include <string>
 
+#include "icons/poison.h"
+#include "icons/lotus_menu_icon.h"
+
 namespace sticky_lotus::ui
 {
     AppRenderer::AppRenderer(
-        Canvas& canvas,
-        ImageRenderer& imageRenderer
+        Canvas& canvas
     )
-        : canvas_(canvas),
-          imageRenderer_(imageRenderer)
+        : canvas_(canvas)
     {
     }
 
     void AppRenderer::drawGame(
-        const GameState& game
-    )
+       const GameState& game
+   )
     {
         canvas_.clear(
             Ink::White
@@ -30,14 +31,23 @@ namespace sticky_lotus::ui
         drawMenuButton();
         drawBatteryPercent();
 
+        /*
+         * Der komplette Bildschirm wurde neu gezeichnet.
+         */
         canvas_.invalidate({
             0.0F,
             0.0F,
             static_cast<float>(screenWidth),
             static_cast<float>(screenHeight)
         });
-    }
 
+        /*
+         * Refresh vormerken.
+         * StickyCanvas::serviceRefresh() führt ihn
+         * nach der konfigurierten Verzögerung aus.
+         */
+        canvas_.flush();
+    }
     void AppRenderer::drawPlayerRegion(
         const GameState& game,
         const std::size_t playerIndex
@@ -102,111 +112,208 @@ namespace sticky_lotus::ui
 
         canvas_.flush();
     }
-
-    void AppRenderer::drawPoisonRegion(
-        const GameState& game,
-        const std::size_t selectedPlayer
+    void AppRenderer::drawGameImmediately(
+        const GameState& game
     )
     {
-        const std::size_t playerCount =
-            game.getPlayerCount();
-
-        if (selectedPlayer >= playerCount)
-        {
-            return;
-        }
-
-        const Rect playerArea =
-            tableLayout_.playerArea(
-                selectedPlayer,
-                playerCount
-            );
-
-        const bool upsideDown =
-            tableLayout_.isUpsideDown(
-                selectedPlayer,
-                playerCount
-            );
-
-        const float rotation =
-            upsideDown
-                ? 180.0F
-                : 0.0F;
+        /*
+         * Kompletten Framebuffer neu aufbauen.
+         */
+        drawGame(
+            game
+        );
 
         /*
-         * Nur das ausgewählte Spielerfeld im RAM löschen.
+         * Den von drawGame() vorgemerkten Partial Refresh
+         * durch einen echten Full Refresh ersetzen.
+         *
+         * Wichtig bei grundlegenden Zustandswechseln wie
+         * lebend <-> ausgeschieden.
          */
-        canvas_.fillRect(
-            playerArea,
-            Ink::White
+        canvas_.flushImmediately();
+    }
+
+
+    void AppRenderer::drawPoisonRegion(
+    const GameState& game,
+    const std::size_t selectedPlayer
+)
+{
+    const std::size_t playerCount =
+        game.getPlayerCount();
+
+    if (selectedPlayer >= playerCount)
+    {
+        return;
+    }
+
+    const Rect playerArea =
+        tableLayout_.playerArea(
+            selectedPlayer,
+            playerCount
         );
 
-        canvas_.drawRect(
-            playerArea,
-            2.0F,
-            Ink::Black
+    const bool upsideDown =
+        tableLayout_.isUpsideDown(
+            selectedPlayer,
+            playerCount
         );
 
-        const Rect physicalTopArea =
-            getPoisonPlusRectangle(
-                selectedPlayer,
-                playerCount
+    const float rotation =
+        upsideDown
+            ? 180.0F
+            : 0.0F;
+
+    /*
+     * Nur das ausgewählte Spielerfeld im RAM löschen.
+     */
+    canvas_.fillRect(
+        playerArea,
+        Ink::White
+    );
+
+    canvas_.drawRect(
+        playerArea,
+        2.0F,
+        Ink::Black
+    );
+
+    const Rect physicalTopArea =
+        getPoisonPlusRectangle(
+            selectedPlayer,
+            playerCount
+        );
+
+    const Rect physicalBottomArea =
+        getPoisonMinusRectangle(
+            selectedPlayer,
+            playerCount
+        );
+
+    /*
+     * Für gedrehte Spieler:
+     *
+     * normal:
+     * +
+     * Logo
+     * Counter
+     * -
+     *
+     * upsideDown:
+     * -
+     * Counter
+     * Logo
+     * +
+     */
+    const Rect plusArea =
+        upsideDown
+            ? physicalBottomArea
+            : physicalTopArea;
+
+    const Rect minusArea =
+        upsideDown
+            ? physicalTopArea
+            : physicalBottomArea;
+
+    canvas_.drawText(
+        "+",
+        plusArea,
+        42,
+        Ink::Black,
+        TextAlignment::Center,
+        rotation
+    );
+
+        constexpr float poisonIconWidth =
+        static_cast<float>(
+            POISON_WIDTH
+        );
+
+        constexpr float poisonIconHeight =
+            static_cast<float>(
+                POISON_HEIGHT
             );
 
-        const Rect physicalBottomArea =
-            getPoisonMinusRectangle(
-                selectedPlayer,
-                playerCount
-            );
+        /*
+         * Abstand zwischen Logo und Counter.
+         */
+        constexpr float poisonContentGap =
+            22.0F;
 
-        const Rect plusArea =
-            upsideDown
-                ? physicalBottomArea
-                : physicalTopArea;
+        /*
+         * Breite für den Zahlenbereich.
+         */
+        constexpr float poisonNumberWidth =
+            70.0F;
 
-        const Rect minusArea =
-            upsideDown
-                ? physicalTopArea
-                : physicalBottomArea;
+        constexpr float poisonNumberHeight =
+            60.0F;
 
-        canvas_.drawText(
-            "+",
-            plusArea,
-            42,
-            Ink::Black,
-            TextAlignment::Center,
-            rotation
-        );
+        /*
+         * Gesamte Breite der horizontalen Gruppe:
+         *
+         * [ Logo ][ Abstand ][ Zahl ]
+         */
+        const float poisonContentWidth =
+            poisonIconWidth +
+            poisonContentGap +
+            poisonNumberWidth;
 
-        const Rect poisonIconArea = {
+        /*
+         * Gemeinsamer linker Startpunkt, sodass die
+         * komplette Gruppe horizontal im Spielerfeld
+         * zentriert ist.
+         */
+        const float poisonContentStartX =
             playerArea.x +
-            playerArea.width / 2.0F -
-            20.0F,
+            (
+                playerArea.width -
+                poisonContentWidth
+            ) / 2.0F;
 
+        /*
+         * Gemeinsame vertikale Mitte.
+         */
+        const float poisonContentCenterY =
             playerArea.y +
-            playerArea.height / 2.0F -
-            42.0F,
+            playerArea.height / 2.0F;
 
-            40.0F,
-            40.0F
+        /*
+         * Logo links.
+         */
+        const Rect poisonIconArea = {
+            poisonContentStartX,
+
+            poisonContentCenterY -
+            poisonIconHeight / 2.0F,
+
+            poisonIconWidth,
+            poisonIconHeight
         };
 
-        imageRenderer_.drawImage(
-            ImageId::Poison,
-            poisonIconArea,
-            ImageFit::Contain,
-            rotation
-        );
-
+        /*
+         * Counter rechts daneben.
+         */
         const Rect poisonNumberArea = {
-            playerArea.x + 20.0F,
+            poisonContentStartX +
+            poisonIconWidth +
+            poisonContentGap,
 
-            playerArea.y +
-            playerArea.height / 2.0F,
+            poisonContentCenterY -
+            poisonNumberHeight / 2.0F,
 
-            playerArea.width - 40.0F,
-            48.0F
+            poisonNumberWidth,
+            poisonNumberHeight
         };
+
+        canvas_.drawMonochromeBitmap(
+            poison,
+            POISON_WIDTH,
+            POISON_HEIGHT,
+            POISON_BYTES_PER_ROW,
+            poisonIconArea,
+            0.0F
+        );
 
         canvas_.drawText(
             std::to_string(
@@ -215,27 +322,31 @@ namespace sticky_lotus::ui
                 )
             ),
             poisonNumberArea,
-            36,
+            42,
             Ink::Black,
             TextAlignment::Center,
             rotation
         );
 
-        canvas_.drawText(
-            "-",
-            minusArea,
-            42,
-            game.getPoison(selectedPlayer) > 0
-                ? Ink::Black
-                : Ink::LightGray,
-            TextAlignment::Center,
-            rotation
-        );
+    canvas_.drawText(
+        "-",
+        minusArea,
+        42,
+        game.getPoison(selectedPlayer) > 0
+            ? Ink::Black
+            : Ink::LightGray,
+        TextAlignment::Center,
+        rotation
+    );
 
-        redrawStatusOverlay(
-            playerArea
-        );
-    }
+    /*
+     * Batterie und Menübutton nach dem partiellen
+     * Redraw wieder über das Spielerfeld legen.
+     */
+    redrawStatusOverlay(
+        playerArea
+    );
+}
 
     void AppRenderer::drawPlayers(
         const GameState& game
@@ -276,15 +387,16 @@ namespace sticky_lotus::ui
     }
 
     void AppRenderer::redrawStatusOverlay(
-        const Rect& dirtyArea
-    )
+     const Rect& dirtyArea
+ )
     {
         /*
-         * Batterie immer zuletzt zeichnen,
+         * Overlays immer zuletzt zeichnen,
          * damit sie nicht von einem Spielerfeld
-         * wieder übermalt wird.
+         * wieder übermalt werden.
          */
         drawBatteryPercent();
+        drawMenuButton();
 
         /*
          * Den eigentlichen geänderten Bereich markieren.
@@ -294,10 +406,14 @@ namespace sticky_lotus::ui
         );
 
         /*
-         * Zusätzlich den Bereich der Batterie markieren.
+         * Zusätzlich die Overlay-Bereiche markieren.
          */
         canvas_.invalidate(
             getBatteryRectangle()
+        );
+
+        canvas_.invalidate(
+            getMenuButtonRectangle()
         );
 
         /*
@@ -669,12 +785,18 @@ namespace sticky_lotus::ui
             button.height / 2.0F
         };
 
+        /*
+         * Hintergrund des Buttons.
+         */
         canvas_.fillCircle(
             center,
             button.width / 2.0F,
             Ink::White
         );
 
+        /*
+         * Kreisrand.
+         */
         canvas_.drawCircle(
             center,
             button.width / 2.0F,
@@ -682,43 +804,28 @@ namespace sticky_lotus::ui
             Ink::Black
         );
 
-        constexpr float lineWidth =
-            25.0F;
+        /*
+         * Lotus-Icon mittig im Button platzieren.
+         */
+        const Rect iconArea = {
+            center.x -
+                static_cast<float>(LOTUS_ICON_WIDTH) / 2.0F,
 
-        constexpr float lineThickness =
-            4.0F;
+            center.y -
+                static_cast<float>(LOTUS_ICON_HEIGHT) / 2.0F - 2.0F,
 
-        constexpr float lineSpacing =
-            8.0F;
+            static_cast<float>(LOTUS_ICON_WIDTH),
+            static_cast<float>(LOTUS_ICON_HEIGHT)
+        };
 
-        for (
-            int line = -1;
-            line <= 1;
-            ++line
-        )
-        {
-            const float y =
-                center.y +
-                static_cast<float>(
-                    line
-                ) *
-                lineSpacing;
-
-            canvas_.drawLine(
-                {
-                    center.x -
-                    lineWidth / 2.0F,
-                    y
-                },
-                {
-                    center.x +
-                    lineWidth / 2.0F,
-                    y
-                },
-                lineThickness,
-                Ink::Black
-            );
-        }
+        canvas_.drawMonochromeBitmap(
+            lotus_icon,
+            LOTUS_ICON_WIDTH,
+            LOTUS_ICON_HEIGHT,
+            LOTUS_ICON_BYTES_PER_ROW,
+            iconArea,
+            0.0F
+        );
     }
 
     void AppRenderer::drawSettingsButton(
@@ -1157,6 +1264,17 @@ namespace sticky_lotus::ui
         };
     }
 
+    Rect AppRenderer::getPlayerRectangle(
+        const std::size_t playerIndex,
+        const std::size_t playerCount
+    ) const
+    {
+        return tableLayout_.playerArea(
+            playerIndex,
+            playerCount
+        );
+    }
+
     void AppRenderer::flush()
     {
         canvas_.flush();
@@ -1255,9 +1373,9 @@ namespace sticky_lotus::ui
     }
 
     void AppRenderer::drawLifeCounterRegion(
-    const GameState& game,
-    const std::size_t playerIndex
-)
+        const GameState& game,
+        const std::size_t playerIndex
+    )
     {
         const std::size_t playerCount =
             game.getPlayerCount();
@@ -1293,9 +1411,9 @@ namespace sticky_lotus::ui
             lifeArea.x + horizontalInset,
             lifeArea.y + verticalInset,
             lifeArea.width -
-                horizontalInset * 2.0F,
+            horizontalInset * 2.0F,
             lifeArea.height -
-                verticalInset * 2.0F
+            verticalInset * 2.0F
         };
 
         /*

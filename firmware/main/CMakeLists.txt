@@ -7,7 +7,7 @@ idf_component_register(
         "."
 
         EMBED_FILES
-        "../../assets/icons/poison.bmp"
+        "../../assets/icons/poison.h"
 
         REQUIRES
             nvs_flash
