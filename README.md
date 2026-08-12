@@ -116,6 +116,11 @@ Press the power button again to wake the device and restore the previous game.
 
 The simulator hasn’t been used since the hardware arrived and will probably need a little love before it works with the current version of the software again.
 
+
+# Release 
+
+https://github.com/inkOne/sticky-lotus/tree/main/firmware/release
+
 ## Build
 
 ```bash
