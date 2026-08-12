@@ -1,6 +1,6 @@
 # Sticky Lotus
 
-> A lightweight Magic: The Gathering life counter built for the Seeed Studio reTerminalSticky.
+> A Magic: The Gathering life counter built for the Seeed Studio reTerminalSticky.
 
 <p align="center">
   <img src="assets/images/sticky-lotus.jpeg" alt="Sticky Lotus" width="500">
