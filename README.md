@@ -126,8 +126,8 @@ The simulator hasn’t been used since the hardware arrived and will probably ne
 
 
 On the official firmware upload page, under Step 1: Firmware Source, select Manual Upload and choose the file available under Releases. 
-https://www.seeedstudio.com/sticky/playground/official-firmware/
-https://github.com/inkOne/sticky-lotus/tree/main/firmware/release
+- https://www.seeedstudio.com/sticky/playground/official-firmware/
+- https://github.com/inkOne/sticky-lotus/tree/main/firmware/release
 
 Then, under Step 2: Connect and Flash, click the button to upload or flash Sticky Lotus to your Sticky.
 
