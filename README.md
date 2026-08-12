@@ -5,10 +5,11 @@
 <p align="center">
   <img src="assets/images/sticky-lotus.jpeg" alt="Sticky Lotus" width="500">
 </p>
-<p align="center">
 
-Video preview:   https://lotus.cooppunks.social/sticky-lotus.webm
+<p align="center">
+  Video preview:   https://lotus.cooppunks.social/sticky-lotus.webm
 </p>
+
 <p align="center">
   A fast, touch-first life counter for Magic: The Gathering — designed specifically
   for the E-Ink display of the Seeed Studio Sticky.
