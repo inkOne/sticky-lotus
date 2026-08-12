@@ -72,6 +72,9 @@ namespace sticky_lotus::ui
         Rect getTwoPlayer20Rectangle() const;
 
         [[nodiscard]]
+        Rect getTwoPlayer25Rectangle() const;
+
+        [[nodiscard]]
         Rect getTwoPlayer30Rectangle() const;
 
         [[nodiscard]]
@@ -97,7 +100,23 @@ namespace sticky_lotus::ui
             std::size_t attackingPlayer,
             std::size_t playerCount
         ) const;
+        void drawPlayerModeSettingsButtons(
+            const GameState& game
+        );
 
+        void drawMultiplayerLifeSettingsButtons(
+            const GameState& game
+        );
+
+        void drawTwoPlayerLifeSettingsButtons(
+            const GameState& game
+        );
+        void drawUiButton(
+            const Rect& area,
+            const char* label,
+            bool selected,
+            float rotationDegrees = 0.0F
+        );
         void drawPoison(
             const GameState& game,
             std::size_t playerIndex
@@ -169,10 +188,6 @@ namespace sticky_lotus::ui
             bool upsideDown
         );
 
-        void drawPixelSkull(
-            const Rect& area,
-            float rotationDegrees
-        );
 
         void drawPixelPoison(
             const Rect& area,
@@ -192,6 +207,9 @@ namespace sticky_lotus::ui
             const Rect& area,
             const char* label,
             bool selected
+        );
+        void drawSettingsPanel(
+            const Rect& area
         );
 
         void drawBatteryPercent();

@@ -89,7 +89,78 @@ namespace sticky_lotus_raylib
             toRaylibColor(ink)
         );
     }
+    void RaylibCanvas::fillRoundedRect(
+        const Rect& rect,
+        const float radius,
+        const Ink ink
+    )
+    {
+        const Rectangle rayRect = {
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height
+        };
 
+        const float roundness =
+            radius /
+            (
+                std::min(
+                    rect.width,
+                    rect.height
+                ) / 2.0F
+            );
+
+        DrawRectangleRounded(
+            rayRect,
+            std::clamp(
+                roundness,
+                0.0F,
+                1.0F
+            ),
+            12,
+            toRaylibColor(
+                ink
+            )
+        );
+    }
+    void RaylibCanvas::drawRoundedRect(
+    const Rect& rect,
+    const float radius,
+    const float thickness,
+    const Ink ink
+)
+    {
+        const Rectangle rayRect = {
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height
+        };
+
+        const float roundness =
+            radius /
+            (
+                std::min(
+                    rect.width,
+                    rect.height
+                ) / 2.0F
+            );
+
+        DrawRectangleRoundedLinesEx(
+            rayRect,
+            std::clamp(
+                roundness,
+                0.0F,
+                1.0F
+            ),
+            12,
+            thickness,
+            toRaylibColor(
+                ink
+            )
+        );
+    }
     void RaylibCanvas::drawLine(
         const Point start,
         const Point end,

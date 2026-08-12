@@ -87,138 +87,140 @@ namespace sticky_lotus::screens
         }
     }
 
-    void CommanderDamageScreen::processTap(
-    const ui::Point position
+void CommanderDamageScreen::processTap(
+    const ui::Point position,
+    const int step
 )
 {
-    const std::size_t defenderIndex =
-        context_.navigation.selectedPlayer();
+    const std::size_t receivingPlayer =
+        context_.commanderDraft.receivingPlayer();
 
     const std::size_t playerCount =
-        context_.game.getPlayerCount();
-
-    if (defenderIndex >= playerCount)
-    {
-        return;
-    }
-
-    const std::size_t attackerIndex =
-        draft_.selectedAttacker();
+        context_.commanderDraft.playerCount();
 
     if (
-        attackerIndex >= playerCount ||
-        attackerIndex == defenderIndex
+        !context_.commanderDraft.isActive() ||
+        receivingPlayer >= playerCount
     )
     {
         return;
     }
 
-    const ui::Rect playerArea =
-        context_.renderer.getPlayerRectangle(
-            defenderIndex,
-            playerCount
+    for (
+        std::size_t attackingPlayer = 0;
+        attackingPlayer < playerCount;
+        ++attackingPlayer
+    )
+    {
+        if (attackingPlayer == receivingPlayer)
+        {
+            continue;
+        }
+
+        /*
+         * Das komplette Spielerfeld des Angreifers
+         * ist die Touchfläche.
+         */
+        const ui::Rect playerArea =
+            context_.renderer.getPlayerRectangle(
+                attackingPlayer,
+                playerCount
+            );
+
+        /*
+         * Tap gehört nicht zu diesem Spielerfeld.
+         */
+        if (!playerArea.contains(position))
+        {
+            continue;
+        }
+
+        const bool upsideDown =
+            context_.renderer.isPlayerUpsideDown(
+                attackingPlayer,
+                playerCount
+            );
+
+        /*
+         * Physikalisch wird das Feld einfach
+         * in linke und rechte Hälfte geteilt.
+         */
+        const float centerX =
+            playerArea.x +
+            playerArea.width / 2.0F;
+
+        const bool touchedLeft =
+            position.x < centerX;
+
+        /*
+         * Normale Spieler:
+         *
+         * links  = Minus
+         * rechts = Plus
+         *
+         * Gedrehte Spieler:
+         *
+         * links  = Plus
+         * rechts = Minus
+         *
+         * Dadurch entspricht die Bedienung weiterhin
+         * der um 180 Grad gedrehten Darstellung.
+         */
+        const bool minusPressed =
+            upsideDown
+                ? !touchedLeft
+                : touchedLeft;
+
+        /*
+         * MINUS
+         */
+        if (minusPressed)
+        {
+            context_.commanderDraft.changeDamage(
+                attackingPlayer,
+                -step
+            );
+
+            /*
+             * Bestehendes Verhalten unverändert:
+             * bei Minus kompletter Commander-Screen neu zeichnen.
+             */
+            context_.renderer.drawCommanderDamage(
+                context_.game,
+                context_.commanderDraft
+            );
+
+            context_.renderer.flush();
+
+            return;
+        }
+
+        /*
+         * PLUS
+         */
+        context_.commanderDraft.changeDamage(
+            attackingPlayer,
+            step
         );
 
-    /*
-     * Nur Taps innerhalb des ausgewählten
-     * Spielerfeldes berücksichtigen.
-     */
-    if (!playerArea.contains(position))
-    {
+        /*
+         * Bestehendes Partial-Redraw unverändert.
+         */
+        context_.renderer.drawCommanderDamageRegion(
+            context_.game,
+            context_.commanderDraft,
+            attackingPlayer
+        );
+
+        context_.renderer.drawCommanderDamageRegion(
+            context_.game,
+            context_.commanderDraft,
+            receivingPlayer
+        );
+
         return;
     }
-
-    const bool upsideDown =
-        context_.renderer.isPlayerUpsideDown(
-            defenderIndex,
-            playerCount
-        );
-
-    /*
-     * Ganze Spielerfläche teilen:
-     *
-     * obere Hälfte  = +1 Commander Damage
-     * untere Hälfte = -1 Commander Damage
-     */
-    const float centerY =
-        playerArea.y +
-        playerArea.height / 2.0F;
-
-    int damageChange =
-        position.y < centerY
-            ? 1
-            : -1;
-
-    /*
-     * Für Spieler 3/4 Bedienrichtung umkehren.
-     */
-    if (upsideDown)
-    {
-        damageChange =
-            -damageChange;
-    }
-
-    const int damageBefore =
-        context_.game.getCommanderDamage(
-            attackerIndex,
-            defenderIndex
-        );
-
-    const bool wasEliminated =
-        context_.game.isPlayerEliminated(
-            defenderIndex
-        );
-
-    context_.game.changeCommanderDamage(
-        attackerIndex,
-        defenderIndex,
-        damageChange
-    );
-
-    const int damageAfter =
-        context_.game.getCommanderDamage(
-            attackerIndex,
-            defenderIndex
-        );
-
-    /*
-     * Keine tatsächliche Änderung, z. B.
-     * bei 0 Schaden und erneut Minus.
-     */
-    if (damageBefore == damageAfter)
-    {
-        return;
-    }
-
-    const bool isEliminated =
-        context_.game.isPlayerEliminated(
-            defenderIndex
-        );
-
-    /*
-     * Commander-Tod oder Wiederbelebung:
-     * kompletten Game-Screen neu zeichnen.
-     */
-    if (wasEliminated != isEliminated)
-    {
-        context_.renderer.drawGameImmediately(
-            context_.game
-        );
-
-        context_.navigation.showGame();
-
-        return;
-    }
-
-    /*
-     * Sonst nur Commander-Bereich neu zeichnen.
-     */
-    context_.renderer.drawCommanderDamageRegion(
-        context_.game,
-        draft_
-    );
 }
-
     void CommanderDamageScreen::leaveAndCommit()
     {
         commitOnExit_ = true;

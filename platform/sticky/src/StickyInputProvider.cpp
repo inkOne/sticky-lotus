@@ -255,25 +255,6 @@ void StickyInputProvider::handleTouchEvent(
             );
         }
 
-        ESP_LOGI(
-            logTag,
-            "Gesture queued: %d start=(%.0f,%.0f) "
-            "end=(%.0f,%.0f) duration=%lldms pending=%u",
-            static_cast<int>(
-                completedFrame.gesture.gesture
-            ),
-            gestureStart_.x,
-            gestureStart_.y,
-            lastPosition_.x,
-            lastPosition_.y,
-            static_cast<long long>(
-                pressDurationUs / 1000
-            ),
-            static_cast<unsigned>(
-                pendingCount_
-            )
-        );
-
         break;
     }
 

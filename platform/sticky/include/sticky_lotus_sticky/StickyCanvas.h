@@ -42,6 +42,18 @@ namespace sticky_lotus_sticky
             sticky_lotus::ui::Ink ink
         ) override;
 
+        void fillRoundedRect(
+            const sticky_lotus::ui::Rect& rect,
+            float radius,
+            sticky_lotus::ui::Ink ink
+        ) override;
+
+        void drawRoundedRect(
+            const sticky_lotus::ui::Rect& rect,
+            float radius,
+            float thickness,
+            sticky_lotus::ui::Ink ink
+        ) override;
         void drawLine(
             sticky_lotus::ui::Point start,
             sticky_lotus::ui::Point end,

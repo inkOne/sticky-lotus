@@ -79,6 +79,18 @@ namespace sticky_lotus::ui
             Ink ink
         ) = 0;
 
+        virtual void fillRoundedRect(
+            const Rect& rect,
+            float radius,
+            Ink ink
+        ) = 0;
+
+        virtual void drawRoundedRect(
+            const Rect& rect,
+            float radius,
+            float thickness,
+            Ink ink
+        ) = 0;
         /**
          * Zeichnet eine Linie.
          */

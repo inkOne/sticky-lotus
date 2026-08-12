@@ -182,6 +182,154 @@ namespace sticky_lotus_sticky
         fillRect({area.x + area.width - line, area.y, line, area.height}, ink);
     }
 
+    void StickyCanvas::fillRoundedRect(
+        const Rect& rect,
+        const float radius,
+        const Ink ink
+    )
+    {
+        if (
+            rect.width <= 0.0F ||
+            rect.height <= 0.0F
+        )
+        {
+            return;
+        }
+
+        const float maxRadius =
+            std::min(
+                rect.width,
+                rect.height
+            ) / 2.0F;
+
+        const float r =
+            std::max(
+                0.0F,
+                std::min(
+                    radius,
+                    maxRadius
+                )
+            );
+
+        /*
+         * Mittlerer horizontaler Bereich.
+         */
+        fillRect(
+            {
+                rect.x + r,
+                rect.y,
+                rect.width - 2.0F * r,
+                rect.height
+            },
+            ink
+        );
+
+        /*
+         * Mittlerer vertikaler Bereich.
+         */
+        fillRect(
+            {
+                rect.x,
+                rect.y + r,
+                rect.width,
+                rect.height - 2.0F * r
+            },
+            ink
+        );
+
+        /*
+         * Vier Ecken.
+         */
+        fillCircle(
+            {
+                rect.x + r,
+                rect.y + r
+            },
+            r,
+            ink
+        );
+
+        fillCircle(
+            {
+                rect.x + rect.width - r,
+                rect.y + r
+            },
+            r,
+            ink
+        );
+
+        fillCircle(
+            {
+                rect.x + r,
+                rect.y + rect.height - r
+            },
+            r,
+            ink
+        );
+
+        fillCircle(
+            {
+                rect.x + rect.width - r,
+                rect.y + rect.height - r
+            },
+            r,
+            ink
+        );
+    }
+
+    void StickyCanvas::drawRoundedRect(
+        const Rect& rect,
+        const float radius,
+        const float thickness,
+        const Ink ink
+    )
+    {
+        if (
+            rect.width <= 0.0F ||
+            rect.height <= 0.0F ||
+            thickness <= 0.0F
+        )
+        {
+            return;
+        }
+
+        /*
+         * Außenform.
+         */
+        fillRoundedRect(
+            rect,
+            radius,
+            ink
+        );
+
+        /*
+         * Innenbereich wieder freilegen.
+         */
+        const Rect innerRect = {
+            rect.x + thickness,
+            rect.y + thickness,
+            rect.width - 2.0F * thickness,
+            rect.height - 2.0F * thickness
+        };
+
+        if (
+            innerRect.width <= 0.0F ||
+            innerRect.height <= 0.0F
+        )
+        {
+            return;
+        }
+
+        fillRoundedRect(
+            innerRect,
+            std::max(
+                0.0F,
+                radius - thickness
+            ),
+            Ink::White
+        );
+    }
+
     void StickyCanvas::drawLine(
         const Point start,
         const Point end,
@@ -426,6 +574,7 @@ namespace sticky_lotus_sticky
 
     void StickyCanvas::serviceRefresh()
     {
+
         if (!refreshPending_)
         {
             return;
@@ -461,10 +610,6 @@ namespace sticky_lotus_sticky
 
         refreshPending_ = false;
 
-        ESP_LOGI(
-            logTag,
-            "Coalesced framebuffer displayed"
-        );
     }
 
     void StickyCanvas::flushImmediately()
@@ -501,94 +646,94 @@ namespace sticky_lotus_sticky
     }
 
     void StickyCanvas::drawMonochromeBitmap(
-    const std::uint8_t* bitmap,
-    const int bitmapWidth,
-    const int bitmapHeight,
-    const int bytesPerRow,
-    const Rect& targetArea,
-    const float rotationDegrees
-)
-{
-    if (
-        bitmap == nullptr ||
-        bitmapWidth <= 0 ||
-        bitmapHeight <= 0 ||
-        bytesPerRow <= 0
+        const std::uint8_t* bitmap,
+        const int bitmapWidth,
+        const int bitmapHeight,
+        const int bytesPerRow,
+        const Rect& targetArea,
+        const float rotationDegrees
     )
     {
-        return;
-    }
-
-    const bool upsideDown =
-        rotationDegrees == 180.0F;
-
-    for (int sourceY = 0; sourceY < bitmapHeight; ++sourceY)
-    {
-        for (int sourceX = 0; sourceX < bitmapWidth; ++sourceX)
+        if (
+            bitmap == nullptr ||
+            bitmapWidth <= 0 ||
+            bitmapHeight <= 0 ||
+            bytesPerRow <= 0
+        )
         {
-            const int byteIndex =
-                sourceY * bytesPerRow +
-                sourceX / 8;
+            return;
+        }
 
-            const int bitIndex =
-                7 - (sourceX % 8);
+        const bool upsideDown =
+            rotationDegrees == 180.0F;
 
-            const bool white =
+        for (int sourceY = 0; sourceY < bitmapHeight; ++sourceY)
+        {
+            for (int sourceX = 0; sourceX < bitmapWidth; ++sourceX)
+            {
+                const int byteIndex =
+                    sourceY * bytesPerRow +
+                    sourceX / 8;
+
+                const int bitIndex =
+                    7 - (sourceX % 8);
+
+                const bool white =
                 (
                     bitmap[byteIndex] >>
                     bitIndex
                 ) & 0x01;
 
-            int displayX =
-                sourceX;
+                int displayX =
+                    sourceX;
 
-            int displayY =
-                sourceY;
+                int displayY =
+                    sourceY;
 
-            if (upsideDown)
-            {
-                displayX =
-                    bitmapWidth - 1 - sourceX;
+                if (upsideDown)
+                {
+                    displayX =
+                        bitmapWidth - 1 - sourceX;
 
-                displayY =
-                    bitmapHeight - 1 - sourceY;
+                    displayY =
+                        bitmapHeight - 1 - sourceY;
+                }
+
+                const int targetX =
+                    static_cast<int>(
+                        targetArea.x
+                    ) +
+                    displayX;
+
+                const int targetY =
+                    static_cast<int>(
+                        targetArea.y
+                    ) +
+                    displayY;
+
+                /*
+                 * Nur innerhalb des Displays zeichnen.
+                 */
+                if (
+                    targetX < 0 ||
+                    targetY < 0 ||
+                    targetX >= width_ ||
+                    targetY >= height_
+                )
+                {
+                    continue;
+                }
+
+                setPixel(
+                    targetX,
+                    targetY,
+                    white
+                        ? Ink::White
+                        : Ink::Black
+                );
             }
-
-            const int targetX =
-                static_cast<int>(
-                    targetArea.x
-                ) +
-                displayX;
-
-            const int targetY =
-                static_cast<int>(
-                    targetArea.y
-                ) +
-                displayY;
-
-            /*
-             * Nur innerhalb des Displays zeichnen.
-             */
-            if (
-                targetX < 0 ||
-                targetY < 0 ||
-                targetX >= width_ ||
-                targetY >= height_
-            )
-            {
-                continue;
-            }
-
-            setPixel(
-                targetX,
-                targetY,
-                white
-                    ? Ink::White
-                    : Ink::Black
-            );
         }
-    }
 
-    dirty_ = true;
-}
+        dirty_ = true;
+    }
 } // namespace sticky_lotus_sticky

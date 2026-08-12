@@ -4,8 +4,10 @@
 #include <cstddef>
 #include <string>
 
-#include "icons/poison.h"
 #include "icons/lotus_menu_icon.h"
+#include "icons/poison.h"
+#include "icons/skull_icon.h"
+#include "icons/cooppunks_social.h"
 
 namespace sticky_lotus::ui
 {
@@ -17,8 +19,8 @@ namespace sticky_lotus::ui
     }
 
     void AppRenderer::drawGame(
-       const GameState& game
-   )
+        const GameState& game
+    )
     {
         canvas_.clear(
             Ink::White
@@ -48,6 +50,7 @@ namespace sticky_lotus::ui
          */
         canvas_.flush();
     }
+
     void AppRenderer::drawPlayerRegion(
         const GameState& game,
         const std::size_t playerIndex
@@ -112,6 +115,7 @@ namespace sticky_lotus::ui
 
         canvas_.flush();
     }
+
     void AppRenderer::drawGameImmediately(
         const GameState& game
     )
@@ -135,99 +139,99 @@ namespace sticky_lotus::ui
 
 
     void AppRenderer::drawPoisonRegion(
-    const GameState& game,
-    const std::size_t selectedPlayer
-)
-{
-    const std::size_t playerCount =
-        game.getPlayerCount();
-
-    if (selectedPlayer >= playerCount)
+        const GameState& game,
+        const std::size_t selectedPlayer
+    )
     {
-        return;
-    }
+        const std::size_t playerCount =
+            game.getPlayerCount();
 
-    const Rect playerArea =
-        tableLayout_.playerArea(
-            selectedPlayer,
-            playerCount
+        if (selectedPlayer >= playerCount)
+        {
+            return;
+        }
+
+        const Rect playerArea =
+            tableLayout_.playerArea(
+                selectedPlayer,
+                playerCount
+            );
+
+        const bool upsideDown =
+            tableLayout_.isUpsideDown(
+                selectedPlayer,
+                playerCount
+            );
+
+        const float rotation =
+            upsideDown
+                ? 180.0F
+                : 0.0F;
+
+        /*
+         * Nur das ausgewählte Spielerfeld im RAM löschen.
+         */
+        canvas_.fillRect(
+            playerArea,
+            Ink::White
         );
 
-    const bool upsideDown =
-        tableLayout_.isUpsideDown(
-            selectedPlayer,
-            playerCount
+        canvas_.drawRect(
+            playerArea,
+            2.0F,
+            Ink::Black
         );
 
-    const float rotation =
-        upsideDown
-            ? 180.0F
-            : 0.0F;
+        const Rect physicalTopArea =
+            getPoisonPlusRectangle(
+                selectedPlayer,
+                playerCount
+            );
 
-    /*
-     * Nur das ausgewählte Spielerfeld im RAM löschen.
-     */
-    canvas_.fillRect(
-        playerArea,
-        Ink::White
-    );
+        const Rect physicalBottomArea =
+            getPoisonMinusRectangle(
+                selectedPlayer,
+                playerCount
+            );
 
-    canvas_.drawRect(
-        playerArea,
-        2.0F,
-        Ink::Black
-    );
+        /*
+         * Für gedrehte Spieler:
+         *
+         * normal:
+         * +
+         * Logo
+         * Counter
+         * -
+         *
+         * upsideDown:
+         * -
+         * Counter
+         * Logo
+         * +
+         */
+        const Rect plusArea =
+            upsideDown
+                ? physicalBottomArea
+                : physicalTopArea;
 
-    const Rect physicalTopArea =
-        getPoisonPlusRectangle(
-            selectedPlayer,
-            playerCount
+        const Rect minusArea =
+            upsideDown
+                ? physicalTopArea
+                : physicalBottomArea;
+
+        canvas_.drawText(
+            "+",
+            plusArea,
+            42,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
         );
-
-    const Rect physicalBottomArea =
-        getPoisonMinusRectangle(
-            selectedPlayer,
-            playerCount
-        );
-
-    /*
-     * Für gedrehte Spieler:
-     *
-     * normal:
-     * +
-     * Logo
-     * Counter
-     * -
-     *
-     * upsideDown:
-     * -
-     * Counter
-     * Logo
-     * +
-     */
-    const Rect plusArea =
-        upsideDown
-            ? physicalBottomArea
-            : physicalTopArea;
-
-    const Rect minusArea =
-        upsideDown
-            ? physicalTopArea
-            : physicalBottomArea;
-
-    canvas_.drawText(
-        "+",
-        plusArea,
-        42,
-        Ink::Black,
-        TextAlignment::Center,
-        rotation
-    );
 
         constexpr float poisonIconWidth =
-        static_cast<float>(
-            POISON_WIDTH
-        );
+            static_cast<float>(
+                POISON_WIDTH
+            );
 
         constexpr float poisonIconHeight =
             static_cast<float>(
@@ -248,17 +252,40 @@ namespace sticky_lotus::ui
 
         constexpr float poisonNumberHeight =
             60.0F;
+        constexpr float poisonLethalGap =
+            14.0F;
+
+        const bool poisonLethal =
+            game.getPoison(
+                selectedPlayer
+            ) >= 10;
+        const float skullWidth =
+    poisonLethal
+        ? static_cast<float>(
+            SKULL_ICON_WIDTH
+        )
+        : 0.0F;
+
+        const float skullGap =
+            poisonLethal
+                ? poisonLethalGap
+                : 0.0F;
 
         /*
-         * Gesamte Breite der horizontalen Gruppe:
+         * Gesamte Breite:
          *
-         * [ Logo ][ Abstand ][ Zahl ]
+         * normal:
+         * [ Poison ][ Gap ][ Zahl ]
+         *
+         * lethal:
+         * [ Skull ][ Gap ][ Poison ][ Gap ][ Zahl ]
          */
         const float poisonContentWidth =
+            skullWidth +
+            skullGap +
             poisonIconWidth +
             poisonContentGap +
             poisonNumberWidth;
-
         /*
          * Gemeinsamer linker Startpunkt, sodass die
          * komplette Gruppe horizontal im Spielerfeld
@@ -279,10 +306,40 @@ namespace sticky_lotus::ui
             playerArea.height / 2.0F;
 
         /*
-         * Logo links.
+         * Für Spieler 1/2:
+         *
+         * [ Logo ][ Abstand ][ Counter ]
+         *
+         * Für Spieler 3/4:
+         *
+         * [ Counter ][ Abstand ][ Logo ]
+         *
+         * Das Logo selbst wird nicht gedreht.
          */
+        const float normalPoisonIconX =
+    poisonContentStartX +
+    skullWidth +
+    skullGap;
+
+        const float normalPoisonNumberX =
+            normalPoisonIconX +
+            poisonIconWidth +
+            poisonContentGap;
+
+        const float poisonIconX =
+            upsideDown
+                ? poisonContentStartX +
+                  poisonNumberWidth +
+                  poisonContentGap
+                : normalPoisonIconX;
+
+        const float poisonNumberX =
+            upsideDown
+                ? poisonContentStartX
+                : normalPoisonNumberX;
+
         const Rect poisonIconArea = {
-            poisonContentStartX,
+            poisonIconX,
 
             poisonContentCenterY -
             poisonIconHeight / 2.0F,
@@ -291,13 +348,8 @@ namespace sticky_lotus::ui
             poisonIconHeight
         };
 
-        /*
-         * Counter rechts daneben.
-         */
         const Rect poisonNumberArea = {
-            poisonContentStartX +
-            poisonIconWidth +
-            poisonContentGap,
+            poisonNumberX,
 
             poisonContentCenterY -
             poisonNumberHeight / 2.0F,
@@ -306,6 +358,45 @@ namespace sticky_lotus::ui
             poisonNumberHeight
         };
 
+        if (poisonLethal)
+        {
+            const Rect skullIconArea = {
+                upsideDown
+                    ? poisonContentStartX +
+                      poisonNumberWidth +
+                      poisonContentGap +
+                      poisonIconWidth +
+                      skullGap
+                    : poisonContentStartX,
+
+                poisonContentCenterY -
+                static_cast<float>(
+                    SKULL_ICON_HEIGHT
+                ) / 2.0F,
+
+                static_cast<float>(
+                    SKULL_ICON_WIDTH
+                ),
+
+                static_cast<float>(
+                    SKULL_ICON_HEIGHT
+                )
+            };
+
+            canvas_.drawMonochromeBitmap(
+                skull_icon,
+                SKULL_ICON_WIDTH,
+                SKULL_ICON_HEIGHT,
+                SKULL_ICON_BYTES_PER_ROW,
+                skullIconArea,
+                rotation
+            );
+        }
+
+        /*
+         * Poison-Icon immer zeichnen.
+         * Das Icon selbst bleibt ungedreht.
+         */
         canvas_.drawMonochromeBitmap(
             poison,
             POISON_WIDTH,
@@ -328,25 +419,52 @@ namespace sticky_lotus::ui
             rotation
         );
 
-    canvas_.drawText(
-        "-",
-        minusArea,
-        42,
-        game.getPoison(selectedPlayer) > 0
-            ? Ink::Black
-            : Ink::LightGray,
-        TextAlignment::Center,
-        rotation
-    );
+        canvas_.drawText(
+            std::to_string(
+                game.getPoison(
+                    selectedPlayer
+                )
+            ),
+            poisonNumberArea,
+            42,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
 
-    /*
-     * Batterie und Menübutton nach dem partiellen
-     * Redraw wieder über das Spielerfeld legen.
-     */
-    redrawStatusOverlay(
-        playerArea
-    );
-}
+        canvas_.drawText(
+            "-",
+            minusArea,
+            42,
+            game.getPoison(selectedPlayer) > 0
+                ? Ink::Black
+                : Ink::LightGray,
+            TextAlignment::Center,
+            rotation
+        );
+        canvas_.drawText(
+            "Swipe up or down to save",
+            {
+                playerArea.x + 20.0F,
+                playerArea.y +
+                playerArea.height -
+                50.0F,
+                playerArea.width - 40.0F,
+                35.0F
+            },
+            20,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            rotation
+        );
+        /*
+         * Batterie und Menübutton nach dem partiellen
+         * Redraw wieder über das Spielerfeld legen.
+         */
+        redrawStatusOverlay(
+            playerArea
+        );
+    }
 
     void AppRenderer::drawPlayers(
         const GameState& game
@@ -387,8 +505,8 @@ namespace sticky_lotus::ui
     }
 
     void AppRenderer::redrawStatusOverlay(
-     const Rect& dirtyArea
- )
+        const Rect& dirtyArea
+    )
     {
         /*
          * Overlays immer zuletzt zeichnen,
@@ -421,32 +539,6 @@ namespace sticky_lotus::ui
          * serviceRefresh() führt ihn später aus.
          */
         canvas_.flush();
-    }
-
-    void AppRenderer::drawPixelSkull(
-        const Rect& area,
-        const float rotationDegrees
-    )
-    {
-        static constexpr int skull[9][9] = {
-            {0, 0, 1, 1, 1, 1, 1, 0, 0},
-            {0, 1, 1, 1, 1, 1, 1, 1, 0},
-            {1, 1, 1, 1, 1, 1, 1, 1, 1},
-            {1, 1, 0, 0, 1, 0, 0, 1, 1},
-            {1, 1, 0, 0, 1, 0, 0, 1, 1},
-            {1, 1, 1, 1, 1, 1, 1, 1, 1},
-            {0, 1, 1, 0, 1, 0, 1, 1, 0},
-            {0, 0, 1, 1, 1, 1, 1, 0, 0},
-            {0, 0, 1, 0, 1, 0, 1, 0, 0}
-        };
-
-        drawPixelIcon(
-            &skull[0][0],
-            9,
-            area,
-            rotationDegrees,
-            Ink::Black
-        );
     }
 
     void AppRenderer::drawPixelIcon(
@@ -682,7 +774,7 @@ namespace sticky_lotus::ui
         {
         case EliminationReason::CommanderDamage:
             canvas_.drawText(
-                "COMMANDER",
+                "COMMANDER DAMAGE",
                 {
                     playerArea.x + 20.0F,
                     playerArea.y +
@@ -698,7 +790,7 @@ namespace sticky_lotus::ui
             );
 
             canvas_.drawText(
-                "DAMAGE",
+                "",
                 {
                     playerArea.x + 20.0F,
                     playerArea.y +
@@ -809,10 +901,10 @@ namespace sticky_lotus::ui
          */
         const Rect iconArea = {
             center.x -
-                static_cast<float>(LOTUS_ICON_WIDTH) / 2.0F,
+            static_cast<float>(LOTUS_ICON_WIDTH) / 2.0F,
 
             center.y -
-                static_cast<float>(LOTUS_ICON_HEIGHT) / 2.0F - 2.0F,
+            static_cast<float>(LOTUS_ICON_HEIGHT) / 2.0F - 2.0F,
 
             static_cast<float>(LOTUS_ICON_WIDTH),
             static_cast<float>(LOTUS_ICON_HEIGHT)
@@ -827,6 +919,84 @@ namespace sticky_lotus::ui
             0.0F
         );
     }
+    void AppRenderer::drawTwoPlayerLifeSettingsButtons(
+        const GameState& game
+    )
+    {
+        drawSettingsButton(
+            getTwoPlayer40Rectangle(),
+            "40",
+            game.getSettings().twoPlayerStartingLife == 40
+        );
+
+        drawSettingsButton(
+            getTwoPlayer30Rectangle(),
+            "30",
+            game.getSettings().twoPlayerStartingLife == 30
+        );
+
+        drawSettingsButton(
+            getTwoPlayer25Rectangle(),
+            "25",
+            game.getSettings().twoPlayerStartingLife == 25
+        );
+
+        drawSettingsButton(
+            getTwoPlayer20Rectangle(),
+            "20",
+            game.getSettings().twoPlayerStartingLife == 20
+        );
+
+        canvas_.flush();
+    }
+    void AppRenderer::drawPlayerModeSettingsButtons(
+        const GameState& game
+    )
+    {
+        drawSettingsButton(
+            getTwoPlayersButtonRectangle(),
+            "2",
+            game.getSettings().playerMode ==
+                PlayerMode::TwoPlayers
+        );
+
+        drawSettingsButton(
+            getFourPlayersButtonRectangle(),
+            "4",
+            game.getSettings().playerMode ==
+                PlayerMode::FourPlayers
+        );
+
+        canvas_.flush();
+    }
+
+    void AppRenderer::drawMultiplayerLifeSettingsButtons(
+        const GameState& game
+    )
+    {
+        drawSettingsButton(
+            getMultiplayer40Rectangle(),
+            "40",
+            game.getSettings().multiplayerStartingLife ==
+                40
+        );
+
+        drawSettingsButton(
+            getMultiplayer30Rectangle(),
+            "30",
+            game.getSettings().multiplayerStartingLife ==
+                30
+        );
+
+        drawSettingsButton(
+            getMultiplayer20Rectangle(),
+            "20",
+            game.getSettings().multiplayerStartingLife ==
+                20
+        );
+
+        canvas_.flush();
+    }
 
     void AppRenderer::drawSettingsButton(
         const Rect& area,
@@ -834,26 +1004,70 @@ namespace sticky_lotus::ui
         const bool selected
     )
     {
-        canvas_.fillRect(
+        constexpr float radius =
+            14.0F;
+
+        constexpr float borderThickness =
+            2.0F;
+
+        if (selected)
+        {
+            canvas_.fillRoundedRect(
+                area,
+                radius,
+                Ink::Black
+            );
+
+            canvas_.drawText(
+                label,
+                area,
+                24,
+                Ink::White,
+                TextAlignment::Center,
+                0.0F
+            );
+
+            return;
+        }
+
+        canvas_.fillRoundedRect(
             area,
-            selected
-                ? Ink::Black
-                : Ink::White
+            radius,
+            Ink::White
         );
 
-        canvas_.drawRect(
+        canvas_.drawRoundedRect(
             area,
-            2.0F,
+            radius,
+            borderThickness,
             Ink::Black
         );
 
         canvas_.drawText(
             label,
             area,
-            20,
-            selected
-                ? Ink::White
-                : Ink::Black
+            24,
+            Ink::Black,
+            TextAlignment::Center,
+            0.0F
+        );
+    }
+
+    void AppRenderer::drawSettingsPanel(
+        const Rect& area
+    )
+    {
+        canvas_.fillRoundedRect(
+            area,
+            20.0F,
+            Ink::White
+        );
+
+        canvas_.drawRoundedRect(
+            area,
+            20.0F,
+            2.0F,
+            Ink::Black
         );
     }
 
@@ -865,159 +1079,324 @@ namespace sticky_lotus::ui
             Ink::White
         );
 
-        const Rect panel = {
-            100.0F,
-            20.0F,
-            600.0F,
-            440.0F
+        const Rect settingsPanel = {
+            35.0F,
+            25.0F,
+            screenWidth - 70.0F,
+            screenHeight - 50.0F
         };
 
-        canvas_.fillRect(
-            panel,
-            Ink::White
+        drawSettingsPanel(
+            settingsPanel
         );
 
-        canvas_.drawRect(
-            panel,
-            3.0F,
-            Ink::Black
-        );
-
+        /*
+         * Titel
+         */
         canvas_.drawText(
             "Settings",
             {
-                130.0F,
-                35.0F,
-                220.0F,
-                50.0F
+                settingsPanel.x + 20.0F,
+                settingsPanel.y + 15.0F,
+                settingsPanel.width - 40.0F,
+                42.0F
             },
-            32,
+            30,
             Ink::Black,
-            TextAlignment::Left
+            TextAlignment::Center,
+            0.0F
         );
-
+        /*
+         * Schließen oben rechts
+         */
+        const Rect closeButton =
+            getCloseButtonRectangle();
         drawSettingsButton(
-            getCloseButtonRectangle(),
+            closeButton,
             "X",
             false
         );
+        /*
+         * Vorhandene Button-Rechtecke holen.
+         *
+         * Die Überschriften werden anhand dieser Rechtecke
+         * ausgerichtet. Dadurch stimmen Layout und Touchflächen
+         * automatisch miteinander überein.
+         */
+        const Rect twoPlayersButton =
+            getTwoPlayersButtonRectangle();
 
+        const Rect fourPlayersButton =
+            getFourPlayersButtonRectangle();
+
+        const Rect multiplayer40Button =
+            getMultiplayer40Rectangle();
+
+        const Rect multiplayer30Button =
+            getMultiplayer30Rectangle();
+
+        const Rect multiplayer20Button =
+            getMultiplayer20Rectangle();
+
+        const Rect twoPlayer40Button =
+            getTwoPlayer40Rectangle();
+
+        const Rect twoPlayer30Button =
+            getTwoPlayer30Rectangle();
+
+        const Rect twoPlayer25Button =
+            getTwoPlayer25Rectangle();
+        const Rect twoPlayer20Button =
+            getTwoPlayer20Rectangle();
+
+        /*
+         * Players
+         */
         canvas_.drawText(
             "Players",
             {
-                130.0F,
-                90.0F,
+                twoPlayersButton.x,
+                twoPlayersButton.y - 38.0F,
+                260.0F,
+                32.0F
+            },
+            26,
+            Ink::Black,
+            TextAlignment::Left,
+            0.0F
+        );
+
+        drawSettingsButton(
+            twoPlayersButton,
+            "2",
+            game.getSettings().playerMode ==
+            PlayerMode::TwoPlayers
+        );
+
+        drawSettingsButton(
+            fourPlayersButton,
+            "4",
+            game.getSettings().playerMode ==
+            PlayerMode::FourPlayers
+        );
+
+        /*
+         * Multiplayer starting life
+         */
+        canvas_.drawText(
+            "Multiplayer Life",
+            {
+                multiplayer40Button.x,
+                multiplayer40Button.y - 38.0F,
                 300.0F,
-                30.0F
+                32.0F
             },
-            22,
+            26,
             Ink::Black,
-            TextAlignment::Left
+            TextAlignment::Left,
+            0.0F
         );
 
         drawSettingsButton(
-            getTwoPlayersButtonRectangle(),
-            "2 Players",
-            game.getPlayerCount() == 2
-        );
-
-        drawSettingsButton(
-            getFourPlayersButtonRectangle(),
-            "4 Players",
-            game.getPlayerCount() == 4
-        );
-
-        canvas_.drawText(
-            "Multiplayer Starting Life",
-            {
-                130.0F,
-                185.0F,
-                400.0F,
-                30.0F
-            },
-            22,
-            Ink::Black,
-            TextAlignment::Left
-        );
-
-        const int multiplayerLife =
-            game.getSettings()
-                .multiplayerStartingLife;
-
-        drawSettingsButton(
-            getMultiplayer40Rectangle(),
+            multiplayer40Button,
             "40",
-            multiplayerLife == 40
-        );
-
-        drawSettingsButton(
-            getMultiplayer30Rectangle(),
-            "30",
-            multiplayerLife == 30
-        );
-
-        drawSettingsButton(
-            getMultiplayer20Rectangle(),
-            "20",
-            multiplayerLife == 20
-        );
-
-        canvas_.drawText(
-            "Two Player Starting Life",
-            {
-                130.0F,
-                280.0F,
-                400.0F,
-                30.0F
-            },
-            22,
-            Ink::Black,
-            TextAlignment::Left
-        );
-
-        const int twoPlayerLife =
             game.getSettings()
-                .twoPlayerStartingLife;
-
-        drawSettingsButton(
-            getTwoPlayer40Rectangle(),
-            "40",
-            twoPlayerLife == 40
+                .multiplayerStartingLife ==
+            40
         );
 
         drawSettingsButton(
-            getTwoPlayer30Rectangle(),
+            multiplayer30Button,
             "30",
-            twoPlayerLife == 30
+            game.getSettings()
+                .multiplayerStartingLife ==
+            30
         );
 
         drawSettingsButton(
-            getTwoPlayer20Rectangle(),
+            multiplayer20Button,
             "20",
-            twoPlayerLife == 20
+            game.getSettings()
+                .multiplayerStartingLife ==
+            20
         );
 
+        /*
+         * Two-player starting life
+         */
+        canvas_.drawText(
+            "Two Player Life",
+            {
+                twoPlayer40Button.x,
+                twoPlayer40Button.y - 38.0F,
+                300.0F,
+                32.0F
+            },
+            26,
+            Ink::Black,
+            TextAlignment::Left,
+            0.0F
+        );
+
+        drawSettingsButton(
+            twoPlayer40Button,
+            "40",
+            game.getSettings()
+                .twoPlayerStartingLife ==
+            40
+        );
+
+        drawSettingsButton(
+            twoPlayer30Button,
+            "30",
+            game.getSettings()
+                .twoPlayerStartingLife ==
+            30
+        );
+
+        drawSettingsButton(
+            twoPlayer25Button,
+            "25",
+            game.getSettings()
+                .twoPlayerStartingLife ==
+            25
+        );
+
+        drawSettingsButton(
+            twoPlayer20Button,
+            "20",
+            game.getSettings()
+                .twoPlayerStartingLife ==
+            20
+        );
+        /*
+         * Footer
+         */
         drawSettingsButton(
             getResetButtonRectangle(),
-            "Reset Game",
+            "Reset",
             false
         );
 
         drawSettingsButton(
             getDoneButtonRectangle(),
             "Done",
-            false
+            true
         );
 
-        canvas_.invalidate(
-            panel
+        /*
+         * Branding / About rechts
+         */
+        constexpr float brandingX = 515.0F;
+        constexpr float brandingWidth = 240.0F;
+
+        /*
+         * URL
+         */
+        canvas_.drawText(
+            "lotus.cooppunks.social",
+            {
+                brandingX,
+                185.0F,
+                brandingWidth,
+                30.0F
+            },
+            18,
+            Ink::Black,
+            TextAlignment::Center,
+            0.0F
         );
+
+        /*
+         * Cooppunks Logo
+         */
+        constexpr float logoWidth =
+            static_cast<float>(
+                COOPPUNKS_SOCIAL_WIDTH
+            );
+
+        constexpr float logoHeight =
+            static_cast<float>(
+                COOPPUNKS_SOCIAL_HEIGHT
+            );
+
+        const Rect cooppunksLogoArea = {
+            brandingX + 20.0F,
+            235.0F,
+            logoWidth,
+            logoHeight
+        };
+
+        canvas_.drawMonochromeBitmap(
+            cooppunks_social,
+            COOPPUNKS_SOCIAL_WIDTH,
+            COOPPUNKS_SOCIAL_HEIGHT,
+            COOPPUNKS_SOCIAL_BYTES_PER_ROW,
+            cooppunksLogoArea,
+            0.0F
+        );
+
+        /*
+         * by ink 2026
+         */
+        canvas_.drawText(
+            "by ink 2026",
+            {
+                cooppunksLogoArea.x +
+                cooppunksLogoArea.width +
+                12.0F,
+
+                cooppunksLogoArea.y,
+
+                brandingWidth -
+                cooppunksLogoArea.width -
+                32.0F,
+
+                cooppunksLogoArea.height
+            },
+            18,
+            Ink::Black,
+            TextAlignment::Left,
+            0.0F
+        );
+
+        /*
+         * Version
+         */
+        canvas_.drawText(
+            "v1.0",
+            {
+                brandingX,
+                cooppunksLogoArea.y +
+                cooppunksLogoArea.height +
+                12.0F,
+
+                brandingWidth,
+                24.0F
+            },
+            16,
+            Ink::DarkGray,
+            TextAlignment::Center,
+            0.0F
+        );
+
+
+
+        canvas_.invalidate({
+            0.0F,
+            0.0F,
+            static_cast<float>(screenWidth),
+            static_cast<float>(screenHeight)
+        });
+
+
+        canvas_.flush();
     }
 
     Rect AppRenderer::getCloseButtonRectangle() const
     {
         return {
-            635.0F,
+            700.0F,
             35.0F,
             45.0F,
             45.0F
@@ -1027,7 +1406,7 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getTwoPlayersButtonRectangle() const
     {
         return {
-            130.0F,
+            70.0F,
             125.0F,
             125.0F,
             44.0F
@@ -1037,7 +1416,7 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getFourPlayersButtonRectangle() const
     {
         return {
-            270.0F,
+            210.0F,
             125.0F,
             125.0F,
             44.0F
@@ -1047,7 +1426,7 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getMultiplayer40Rectangle() const
     {
         return {
-            130.0F,
+            70.0F,
             220.0F,
             75.0F,
             42.0F
@@ -1057,7 +1436,7 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getMultiplayer30Rectangle() const
     {
         return {
-            215.0F,
+            155.0F,
             220.0F,
             75.0F,
             42.0F
@@ -1067,7 +1446,7 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getMultiplayer20Rectangle() const
     {
         return {
-            300.0F,
+            240.0F,
             220.0F,
             75.0F,
             42.0F
@@ -1077,17 +1456,17 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getMultiplayerEditRectangle() const
     {
         return {
-            385.0F,
+            325.0F,
             220.0F,
             95.0F,
             42.0F
         };
     }
 
-    Rect AppRenderer::getTwoPlayer20Rectangle() const
+    Rect AppRenderer::getTwoPlayer40Rectangle() const
     {
         return {
-            300.0F,
+            70.0F,
             315.0F,
             75.0F,
             42.0F
@@ -1097,18 +1476,27 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getTwoPlayer30Rectangle() const
     {
         return {
-            215.0F,
+            155.0F,
             315.0F,
             75.0F,
             42.0F
         };
     }
 
-    Rect AppRenderer::getTwoPlayer40Rectangle() const
+    Rect AppRenderer::getTwoPlayer25Rectangle() const
     {
         return {
+            240.0F,
+            315.0F,
+            75.0F,
+            42.0F
+        };
+    }
 
-            130.0F,
+    Rect AppRenderer::getTwoPlayer20Rectangle() const
+    {
+        return {
+            325.0F,
             315.0F,
             75.0F,
             42.0F
@@ -1118,7 +1506,7 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getTwoPlayerEditRectangle() const
     {
         return {
-            385.0F,
+            325.0F,
             315.0F,
             95.0F,
             42.0F
@@ -1128,7 +1516,7 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getResetButtonRectangle() const
     {
         return {
-            130.0F,
+            70.0F,
             390.0F,
             170.0F,
             42.0F
@@ -1138,13 +1526,12 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getDoneButtonRectangle() const
     {
         return {
-            500.0F,
+            560.0F,
             390.0F,
             170.0F,
             42.0F
         };
     }
-
     std::size_t AppRenderer::getCommanderDamageRowIndex(
         const std::size_t sourcePlayer,
         const std::size_t targetPlayer,
@@ -1330,6 +1717,62 @@ namespace sticky_lotus::ui
         );
     }
 
+    void AppRenderer::drawUiButton(
+        const Rect& area,
+        const char* label,
+        const bool selected,
+        const float rotationDegrees
+    )
+    {
+        constexpr float cornerRadius =
+            14.0F;
+
+        constexpr float borderThickness =
+            2.0F;
+
+        if (selected)
+        {
+            canvas_.fillRoundedRect(
+                area,
+                cornerRadius,
+                Ink::Black
+            );
+
+            canvas_.drawText(
+                label,
+                area,
+                24,
+                Ink::White,
+                TextAlignment::Center,
+                rotationDegrees
+            );
+
+            return;
+        }
+
+        canvas_.fillRoundedRect(
+            area,
+            cornerRadius,
+            Ink::White
+        );
+
+        canvas_.drawRoundedRect(
+            area,
+            cornerRadius,
+            borderThickness,
+            Ink::Black
+        );
+
+        canvas_.drawText(
+            label,
+            area,
+            24,
+            Ink::Black,
+            TextAlignment::Center,
+            rotationDegrees
+        );
+    }
+
     void AppRenderer::drawPoison(
         const GameState& game,
         const std::size_t selectedPlayer
@@ -1512,19 +1955,25 @@ namespace sticky_lotus::ui
         {
             if (draft.isLethal())
             {
-                drawPixelSkull(
-                    {
-                        playerArea.x +
-                        playerArea.width / 2.0F -
-                        50.0F,
+                const Rect skullIconArea = {
+                    playerArea.x +
+                    playerArea.width / 2.0F -
+                    static_cast<float>(SKULL_ICON_WIDTH) / 2.0F,
 
-                        playerArea.y +
-                        playerArea.height / 2.0F -
-                        50.0F,
+                    playerArea.y +
+                    playerArea.height / 2.0F -
+                    static_cast<float>(SKULL_ICON_HEIGHT) / 2.0F,
 
-                        100.0F,
-                        100.0F
-                    },
+                    static_cast<float>(SKULL_ICON_WIDTH),
+                    static_cast<float>(SKULL_ICON_HEIGHT)
+                };
+
+                canvas_.drawMonochromeBitmap(
+                    skull_icon,
+                    SKULL_ICON_WIDTH,
+                    SKULL_ICON_HEIGHT,
+                    SKULL_ICON_BYTES_PER_ROW,
+                    skullIconArea,
                     rotation
                 );
 
@@ -1547,35 +1996,35 @@ namespace sticky_lotus::ui
             else
             {
                 canvas_.drawText(
-                    "COMMANDER",
+                    "",
                     {
                         playerArea.x + 20.0F,
                         playerArea.y + 35.0F,
                         playerArea.width - 40.0F,
                         35.0F
                     },
-                    22,
+                    24,
                     Ink::Black,
                     TextAlignment::Center,
                     rotation
                 );
 
                 canvas_.drawText(
-                    "DAMAGE",
+                    "COMMANDER DAMAGE",
                     {
                         playerArea.x + 20.0F,
                         playerArea.y + 72.0F,
                         playerArea.width - 40.0F,
                         35.0F
                     },
-                    22,
+                    24,
                     Ink::Black,
                     TextAlignment::Center,
                     rotation
                 );
 
                 canvas_.drawText(
-                    "Swipe to save",
+                    "Swipe left or right to save",
                     {
                         playerArea.x + 20.0F,
                         playerArea.y +
@@ -1584,7 +2033,7 @@ namespace sticky_lotus::ui
                         playerArea.width - 40.0F,
                         35.0F
                     },
-                    16,
+                    20,
                     Ink::DarkGray,
                     TextAlignment::Center,
                     rotation
