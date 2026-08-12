@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  Website: https://lotus.cooppunks.social/
   Video preview:   https://lotus.cooppunks.social/sticky-lotus.webm
 </p>
 
