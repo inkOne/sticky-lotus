@@ -24,8 +24,19 @@ int main()
         input
     );
 
+    /*
+     * Raylib benötigt im Gegensatz zum E-Ink-Display einen
+     * durchgehenden Frame-Loop: BeginDrawing()/EndDrawing() müssen
+     * jeden Durchlauf aufgerufen werden, sonst tauscht raylib nie
+     * den Framebuffer und pollt keine Fensterereignisse, wodurch
+     * macOS das Fenster als "reagiert nicht" meldet.
+     */
     while (!canvas.shouldClose()) {
         application.tick();
+
+        canvas.beginFrame();
+        application.draw();
+        canvas.endFrame();
     }
 
     return 0;
