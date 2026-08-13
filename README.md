@@ -45,9 +45,9 @@ and more like a purpose-built Magic accessory.
 
 Sticky Lotus is designed for the **Seeed Studio Sticky**.
 
-👉 [Seeed Studio Sticky](SEEED-STICKY-URL)
+[Seeed Studio Sticky](https://www.seeedstudio.com/reTerminal-Sticky-p-6861.html)
 
-The device combines an ESP32-S3, touch input and an E-Ink display,
+It's a 50$ device and combines an ESP32-S3, touch input and an E-Ink display,
 making it particularly well suited for a Magic: The Gathering life counter:
 the display remains readable without a backlight and even keeps its
 last image while the device is sleeping.
