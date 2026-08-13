@@ -119,8 +119,32 @@ Press the power button again to wake the device and restore the previous game.
 
 ## Simulator
 
-The simulator hasn’t been used since the hardware arrived and will probably need a little love before it works with the current version of the software again.
 
+Sticky Lotus can also be developed and tested locally using the simulator, without flashing the firmware to a physical Sticky device. The simulator runs the same core application and UI code, making it useful for quickly testing layouts, interactions, and game logic.
+<p align="center">
+  <img src="assets/images/simulator.png" alt="Sticky Lotus" width="500">
+</p>
+
+If the required development tools such as CMake, Ninja, and a C++ compiler are already installed on your system, Nix is not required. From the project root, configure, build, and start the simulator with:
+```bash
+cmake -S . -B build -G Ninja
+cmake --build build
+./build/simulator/sticky-lotus-simulator
+```
+After making code changes, you normally only need to rebuild and restart:
+```bash
+cmake --build build
+./build/simulator/sticky-lotus-simulator
+```
+
+nix develop is therefore just a convenient way to provide a reproducible development environment; it is not required to run the simulator if the necessary dependencies are installed locally.
+```bash
+nix develop //if you are using nix
+
+cmake -S . -B build -G Ninja
+cmake --build build
+./build/simulator/sticky-lotus-simulator
+```
 
 # Release 
 
@@ -131,21 +155,41 @@ On the official firmware upload page, under Step 1: Firmware Source, select Manu
 
 Then, under Step 2: Connect and Flash, click the button to upload or flash Sticky Lotus to your Sticky.
 
-## Build
+## Firmware
+
+The firmware is built from the firmware directory using ESP-IDF. The project currently targets the ESP32-S3 and is built with ESP-IDF 5.5.4. idf.py build compiles the application together with all ESP-IDF components and generates the bootloader, partition table, and application binaries. 
 
 ```bash
-nix develop
+nix develop  //if you are using nix
 idf.py build
 idf.py -p PORT flash 
 ```
-#### Merged bin
- ```
- idf.py merge-bin
-  ```
 
-`merged-binary.bin` can be updoadet to https://www.seeedstudio.com/sticky/playground/official-firmware/
+Without Nix, a working ESP-IDF development environment must be installed first. This includes ESP-IDF itself, its Python environment and packages, the ESP32-S3 cross-compiler/toolchain, CMake, Ninja, Git, and the other tools installed by the ESP-IDF setup scripts. Espressif recommends installing ESP-IDF and then activating its environment before building.
 
+```bash
+source ~/esp/esp-idf/export.sh
+cd firmware
+idf.py build
+```
 
+The exact path to export.sh depends on where ESP-IDF was installed.
+
+A successful build produces the firmware artifacts under:
+
+```bash
+firmware/build/
+```
+
+ESP-IDF also generates the flash configuration containing the correct offsets for these binaries. The binaries and offsets should be taken from the actual build rather than hard-coded.  
+
+To build and flash directly to a connected Sticky:
+
+```bash
+cd firmware
+idf.py build
+idf.py -p <PORT> flash monitor
+```
 
 ## Upstream Firmware & Credits
 
