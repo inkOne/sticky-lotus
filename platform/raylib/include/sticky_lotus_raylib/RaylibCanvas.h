@@ -96,6 +96,7 @@ namespace sticky_lotus_raylib
         ) override;
 
         void flush() override;
+        void flushImmediately() override;
         void drawMonochromeBitmap(
             const std::uint8_t* bitmap,
             int bitmapWidth,

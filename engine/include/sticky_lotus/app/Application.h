@@ -44,7 +44,6 @@ namespace sticky_lotus::app
         NavigationState navigation_;
         commander::CommanderDamageDraft commanderDraft_;
 
-        ui::Canvas& canvas_;
         input::InputProvider& input_;
 
         ui::AppRenderer renderer_;

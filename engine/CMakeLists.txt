@@ -15,6 +15,8 @@ target_include_directories(
         sticky-lotus-engine
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        PRIVATE
+        ${CMAKE_SOURCE_DIR}/assets
 )
 
 target_link_libraries(

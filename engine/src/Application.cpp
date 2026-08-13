@@ -6,11 +6,9 @@ namespace sticky_lotus::app {
         ui::Canvas& canvas,
         input::InputProvider& input
     )
-        : canvas_(canvas),
-          input_(input),
+        : input_(input),
           renderer_(
               canvas
-
           ),
           screenManager_({
               game_,

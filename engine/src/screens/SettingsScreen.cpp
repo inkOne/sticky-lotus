@@ -45,15 +45,6 @@ namespace sticky_lotus::screens
         const ui::AppRenderer& renderer =
             context_.renderer;
 
-        auto redraw = [&]()
-        {
-            context_.renderer.drawSettings(
-                context_.game
-            );
-
-            context_.renderer.flush();
-        };
-
         if (
             renderer
             .getCloseButtonRectangle()

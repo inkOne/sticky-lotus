@@ -318,6 +318,17 @@ namespace sticky_lotus_raylib
          */
     }
 
+    void RaylibCanvas::flushImmediately()
+    {
+        /*
+         * Bei Raylib gibt es keinen Unterschied zwischen einem
+         * verzögerten und einem sofortigen Refresh.
+         *
+         * Auf dem Sticky löst dies einen sofortigen vollständigen
+         * E-Ink-Refresh statt eines koaleszierten Refreshs aus.
+         */
+    }
+
     Color RaylibCanvas::toRaylibColor(
         const Ink ink
     )
