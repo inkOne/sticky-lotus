@@ -10,12 +10,11 @@
   Website: https://lotus.cooppunks.social/
   Video preview:   https://lotus.cooppunks.social/sticky-lotus.webm
 </p>
-
+<br>
 <p align="center">
   A fast, touch-first life counter for Magic: The Gathering — designed specifically
   for the E-Ink display of the Seeed Studio Sticky.
 </p>
-
 ---
 
 ## About Sticky Lotus
@@ -38,6 +37,14 @@ The project focuses on the things you actually need during a game:
 
 The goal is a device that feels less like an embedded development board
 and more like a purpose-built Magic accessory.
+
+## Flashing directly via seeedstudio playground website
+<p align="center">
+  <img src="assets/images/seeed-sticky-playground.png" alt="Sticky Lotus" width="500">
+</p>
+
+Visit https://www.seeedstudio.com/sticky/playground/sticky-lotus/
+
 
 ---
 
@@ -146,7 +153,9 @@ cmake --build build
 ./build/simulator/sticky-lotus-simulator
 ```
 
-# Release 
+# Flash release from this repo 
+
+Only if you will not use the released on https://www.seeedstudio.com/sticky/playground/sticky-lotus/
 
 
 On the official firmware upload page, under Step 1: Firmware Source, select Manual Upload and choose the file available under Releases. 
