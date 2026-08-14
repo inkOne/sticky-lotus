@@ -52,12 +52,13 @@ Visit https://www.seeedstudio.com/sticky/playground/sticky-lotus/
 
 Sticky Lotus is designed for the **Seeed Studio Sticky**.
 
-[Seeed Studio Sticky](https://www.seeedstudio.com/reTerminal-Sticky-p-6861.html)
+[Seeed Studio Sticky](https://www.seeedstudio.com/reTerminal-Sticky-p-6861.html?sensecap_affiliate=eNnegDW&referring_service=link)*
 
 It's a 50$ device and combines an ESP32-S3, touch input and an E-Ink display,
 making it particularly well suited for a Magic: The Gathering life counter:
 the display remains readable without a backlight and even keeps its
 last image while the device is sleeping.
+*affiliate link
 
 ## Features
 
