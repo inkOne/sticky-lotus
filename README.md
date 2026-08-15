@@ -7,6 +7,9 @@
 </p>
 
 
+<p align="center">
+  Video preview:   https://lotus.cooppunks.social/sticky-lotus.webm
+</p>
 
 <p align="center">
   A fast, touch-first life counter for Magic: The Gathering — designed specifically
