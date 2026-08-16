@@ -148,7 +148,8 @@ cmake --build build
 
 nix develop is therefore just a convenient way to provide a reproducible development environment; it is not required to run the simulator if the necessary dependencies are installed locally.
 ```bash
-nix develop // in porject/firmware if you are using nix
+cd firmware
+nix develop //if you are using nix
 
 cmake -S . -B build -G Ninja
 cmake --build build
