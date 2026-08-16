@@ -788,22 +788,6 @@ namespace sticky_lotus::ui
                 TextAlignment::Center,
                 rotation
             );
-
-            canvas_.drawText(
-                "",
-                {
-                    playerArea.x + 20.0F,
-                    playerArea.y +
-                    playerArea.height / 2.0F +
-                    43.0F,
-                    playerArea.width - 40.0F,
-                    30.0F
-                },
-                20,
-                Ink::Black,
-                TextAlignment::Center,
-                rotation
-            );
             break;
 
         case EliminationReason::Life:

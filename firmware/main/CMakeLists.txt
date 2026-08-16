@@ -13,5 +13,6 @@ idf_component_register(
             nvs_flash
             sticky_lotus_platform
             battery_service
+            project_assets
 )
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_20)
