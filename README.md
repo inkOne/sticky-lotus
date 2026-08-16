@@ -135,6 +135,7 @@ Sticky Lotus can also be developed and tested locally using the simulator, witho
 
 If the required development tools such as CMake, Ninja, and a C++ compiler are already installed on your system, Nix is not required. From the project root, configure, build, and start the simulator with:
 ```bash
+//in porject root
 cmake -S . -B build -G Ninja
 cmake --build build
 ./build/simulator/sticky-lotus-simulator
@@ -147,7 +148,7 @@ cmake --build build
 
 nix develop is therefore just a convenient way to provide a reproducible development environment; it is not required to run the simulator if the necessary dependencies are installed locally.
 ```bash
-nix develop //if you are using nix
+nix develop // in porject/firmware if you are using nix
 
 cmake -S . -B build -G Ninja
 cmake --build build
