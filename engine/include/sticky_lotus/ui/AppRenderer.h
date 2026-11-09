@@ -125,6 +125,51 @@ namespace sticky_lotus::ui
             };
         }
 
+        /*
+         * Feld des A/B-Buchstabens unter der Zahl. Die Lage hängt von der
+         * Ausrichtung des Empfängers ab (gedreht: auf der anderen Seite
+         * der Zahl). Auch ein Tap darauf wechselt zwischen A und B.
+         */
+        static Rect commanderMarkerArea(
+            const std::size_t attackingPlayer,
+            const std::size_t playerCount,
+            const bool upsideDown
+        )
+        {
+            const TableLayout layout{};
+            const Rect area =
+                layout.counterArea(attackingPlayer, playerCount);
+
+            return {
+                area.x + area.width / 2.0F - 80.0F,
+                area.y + area.height / 2.0F +
+                    (upsideDown ? -1.0F : 1.0F) * 70.0F - 20.0F,
+                160.0F,
+                40.0F
+            };
+        }
+
+        /*
+         * Tap auf die Zahl eines Angreifers im Commander-Damage-Screen
+         * wechselt zwischen Commander A und Partner B.
+         */
+        static Rect commanderToggleArea(
+            const std::size_t attackingPlayer,
+            const std::size_t playerCount
+        )
+        {
+            const TableLayout layout{};
+            const Rect area =
+                layout.counterArea(attackingPlayer, playerCount);
+
+            return {
+                area.x + area.width / 2.0F - 60.0F,
+                area.y + area.height / 2.0F - 55.0F,
+                120.0F,
+                110.0F
+            };
+        }
+
         static Rect diceOptionArea(const int index)
         {
             return {

@@ -147,6 +147,40 @@ void CommanderDamageScreen::processTap(
             );
 
         /*
+         * Tap auf die Zahl oder den A/B-Buchstaben wechselt zwischen
+         * Commander A und Partner B dieses Gegners. Langes Drücken dort
+         * bewirkt bewusst nichts, damit der Wechsel nicht versehentlich
+         * +/-10 auslöst.
+         */
+        if (
+            ui::AppRenderer::commanderToggleArea(
+                attackingPlayer,
+                playerCount
+            ).contains(position) ||
+            ui::AppRenderer::commanderMarkerArea(
+                attackingPlayer,
+                playerCount,
+                upsideDown
+            ).contains(position)
+        )
+        {
+            if (step == 1)
+            {
+                context_.commanderDraft.toggleCommander(
+                    attackingPlayer
+                );
+
+                context_.renderer.drawCommanderDamageRegion(
+                    context_.game,
+                    context_.commanderDraft,
+                    attackingPlayer
+                );
+            }
+
+            return;
+        }
+
+        /*
          * Physikalisch wird das Feld einfach
          * in linke und rechte Hälfte geteilt.
          */

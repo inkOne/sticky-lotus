@@ -311,33 +311,48 @@ namespace sticky_lotus::app {
                 attackingPlayer < playerCount;
                 ++attackingPlayer
             ) {
-                if (
-                    !commanderDraft_.hasDamageDeltaHighlight(
-                        attackingPlayer
-                    )
+                bool expired = false;
+
+                for (
+                    int commander = 0;
+                    commander < commander::CommanderDamageDraft::commanderCount;
+                    ++commander
                 ) {
-                    continue;
+                    if (
+                        !commanderDraft_.hasDamageDeltaHighlight(
+                            attackingPlayer,
+                            commander
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    if (
+                        now -
+                        commanderDraft_.getDamageDeltaTimestamp(
+                            attackingPlayer,
+                            commander
+                        ) <
+                        deltaTimeout
+                    ) {
+                        continue;
+                    }
+
+                    commanderDraft_.clearDamageDeltaHighlight(
+                        attackingPlayer,
+                        commander
+                    );
+
+                    expired = true;
                 }
 
-                if (
-                    now -
-                    commanderDraft_.getDamageDeltaTimestamp(
+                if (expired) {
+                    renderer_.drawCommanderDamageRegion(
+                        game_,
+                        commanderDraft_,
                         attackingPlayer
-                    ) <
-                    deltaTimeout
-                ) {
-                    continue;
+                    );
                 }
-
-                commanderDraft_.clearDamageDeltaHighlight(
-                    attackingPlayer
-                );
-
-                renderer_.drawCommanderDamageRegion(
-                    game_,
-                    commanderDraft_,
-                    attackingPlayer
-                );
             }
         }
     }

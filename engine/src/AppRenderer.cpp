@@ -1307,13 +1307,19 @@ namespace sticky_lotus::ui
             Ink::White
         );
 
-        if (!draft.hasDamageDeltaHighlight(attackingPlayer))
+        /*
+         * Die Änderungsanzeige gehört zum gerade angezeigten Commander.
+         */
+        const int commander =
+            draft.selectedCommander(attackingPlayer);
+
+        if (!draft.hasDamageDeltaHighlight(attackingPlayer, commander))
         {
             return;
         }
 
         const int delta =
-            draft.getDamageDelta(attackingPlayer);
+            draft.getDamageDelta(attackingPlayer, commander);
 
         if (delta == 0)
         {
@@ -3191,6 +3197,59 @@ namespace sticky_lotus::ui
             TextAlignment::Center,
             rotation
         );
+
+        /*
+         * Welcher Commander gerade gezeigt wird (A oder Partner B). Hat
+         * der andere schon Schaden, steht dessen Wert in Klammern dabei.
+         * Ein Tap auf die Zahl wechselt (siehe commanderToggleArea()).
+         */
+        {
+            const int shown =
+                draft.selectedCommander(playerIndex);
+
+            const int other =
+                draft.damageFrom(playerIndex, 1 - shown);
+
+            char marker[24]{};
+
+            if (other > 0)
+            {
+                std::snprintf(
+                    marker,
+                    sizeof(marker),
+                    "%c  (%c %d)",
+                    'A' + shown,
+                    'A' + 1 - shown,
+                    other
+                );
+            }
+            else
+            {
+                std::snprintf(
+                    marker,
+                    sizeof(marker),
+                    "%c",
+                    'A' + shown
+                );
+            }
+
+            /*
+             * Unter der Zahl aus Sicht des Empfängers; bei gedrehter
+             * Darstellung liegt "unten" auf der anderen Feldseite.
+             */
+            canvas_.drawText(
+                marker,
+                commanderMarkerArea(
+                    playerIndex,
+                    playerCount,
+                    upsideDown
+                ),
+                32,
+                Ink::Black,
+                TextAlignment::Center,
+                rotation
+            );
+        }
 
         canvas_.drawText(
             "-",

@@ -23,8 +23,11 @@
 for Magic: The Gathering.
 
 The project focuses on the things you actually need during a game:
-Life tracking for 2 or 4 players
+- Life tracking for 2, 3 or 4 players
 - Roll for first
+- Dice and coin on the middle hardware button (D4, D6, D8, D10, D12, D20)
+- Ping: swipe down to make everyone else lose 1 life
+- Player names and win scores
 - Commander Damage
 - Poison Counters
 - Long-press ±10 life changes
@@ -64,7 +67,7 @@ last image while the device is sleeping.
 
 Sticky Lotus supports both:
 
-**2 Player**
+**2 Player**, **3 Player** (one wide seat on top, two below)
 
 and
 
@@ -75,6 +78,31 @@ Each player receives an independent life counter with touch controls.
 Tap the `+` or `−` area to change life by one.
 
 Hold the area to change life by ten.
+
+### Ping
+
+**Swipe down** inside your own player area, from the direction you read it:
+every other player loses 1 life. For four seconds you can **swipe up** in the
+same area to undo the latest ping. After that, swipe up opens Poison as usual.
+Swipes that start on the central menu button never ping.
+
+### Dice and coin
+
+The middle hardware button rolls: **press briefly** to roll, **hold about
+0.8 seconds** to choose coin, D4, D6, D8, D10, D12 or D20. The result is shown
+for three seconds; tap to dismiss it (the tap never changes life). The chosen
+die is remembered, also across deep sleep. Resetting the game is done from
+Settings > Reset. In the simulator, `R` rolls and `D` opens the selector.
+
+### Players and scores
+
+Tap the name above a life total to choose a saved player for that seat, or add
+a new one with the on-screen keyboard. Settings > **Players & scores** shows all
+saved players with their lifetime wins; tap a name to rename it and use
+**Undo last win** to take back the latest recorded win. Settings > **Reset**
+asks who won, adds one win for that player and starts a fresh game, or resets
+without a winner. Profiles and scores are stored on the device and survive deep
+sleep and power loss.
 
 ### Commander Damage
 

@@ -27,6 +27,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 
@@ -539,7 +540,21 @@ namespace sticky_lotus_firmware
                 return result;
             }
 
-            if (size != sizeof(snapshot))
+            /*
+             * Ältere Spielstände enthalten die Partner-Commander-Zähler
+             * noch nicht. Sie sind ein Präfix der heutigen Struktur, der
+             * Rest bleibt durch die Initialisierung oben auf 0.
+             */
+            constexpr std::size_t legacySnapshotSize =
+                offsetof(
+                    sticky_lotus::GameSnapshot,
+                    partnerCommanderDamage
+                );
+
+            if (
+                size != sizeof(snapshot) &&
+                size != legacySnapshotSize
+            )
             {
                 return ESP_ERR_INVALID_SIZE;
             }

@@ -64,6 +64,19 @@ struct GameSnapshot
         >,
         maximumPlayerCount
     > commanderDamage{};
+
+    /*
+     * Schaden des Partner-Commanders (B). Bewusst am Ende angehängt:
+     * ältere Spielstände ohne dieses Feld sind ein Präfix dieser
+     * Struktur und werden beim Laden mit 0 ergänzt.
+     */
+    std::array<
+        std::array<
+            int,
+            maximumPlayerCount
+        >,
+        maximumPlayerCount
+    > partnerCommanderDamage{};
 };
 
 class GameState
@@ -124,16 +137,22 @@ public:
 
     void reset();
 
+    /*
+     * "commander" wählt den Commander des Angreifers: 0 = erster
+     * Commander (A), 1 = Partner (B). Jeder zählt für sich gegen die 21.
+     */
     void changeCommanderDamage(
         std::size_t attackerIndex,
         std::size_t defenderIndex,
-        int amount
+        int amount,
+        int commander = 0
     );
 
     [[nodiscard]]
     int getCommanderDamage(
         std::size_t attackerIndex,
-        std::size_t defenderIndex
+        std::size_t defenderIndex,
+        int commander = 0
     ) const;
 
     void changePoison(
@@ -291,6 +310,31 @@ private:
         >,
         maximumPlayerCount
     > commanderDamage_{};
+
+    /*
+     * Wie commanderDamage_, aber für den Partner-Commander (B).
+     */
+    std::array<
+        std::array<
+            int,
+            maximumPlayerCount
+        >,
+        maximumPlayerCount
+    > partnerDamage_{};
+
+    [[nodiscard]]
+    int& commanderDamageSlot(
+        std::size_t attackerIndex,
+        std::size_t defenderIndex,
+        int commander
+    );
+
+    [[nodiscard]]
+    int commanderDamageSlot(
+        std::size_t attackerIndex,
+        std::size_t defenderIndex,
+        int commander
+    ) const;
 
     void resetCommanderDamage();
 

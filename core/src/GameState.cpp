@@ -238,27 +238,51 @@ namespace sticky_lotus
         hasPoisonDeltaHighlight_.fill(false);
     }
 
+    int& GameState::commanderDamageSlot(
+        const std::size_t attackerIndex,
+        const std::size_t defenderIndex,
+        const int commander
+    )
+    {
+        return commander == 0
+            ? commanderDamage_[attackerIndex][defenderIndex]
+            : partnerDamage_[attackerIndex][defenderIndex];
+    }
+
+    int GameState::commanderDamageSlot(
+        const std::size_t attackerIndex,
+        const std::size_t defenderIndex,
+        const int commander
+    ) const
+    {
+        return commander == 0
+            ? commanderDamage_[attackerIndex][defenderIndex]
+            : partnerDamage_[attackerIndex][defenderIndex];
+    }
+
     void GameState::changeCommanderDamage(
         const std::size_t attackerIndex,
         const std::size_t defenderIndex,
-        const int amount
+        const int amount,
+        const int commander
     )
     {
         if (
             attackerIndex >= getPlayerCount() ||
             defenderIndex >= getPlayerCount() ||
-            attackerIndex == defenderIndex
+            attackerIndex == defenderIndex ||
+            (commander != 0 && commander != 1)
         )
         {
             return;
         }
 
         int& damage =
-            commanderDamage_[
-                attackerIndex
-            ][
-                defenderIndex
-            ];
+            commanderDamageSlot(
+                attackerIndex,
+                defenderIndex,
+                commander
+            );
 
         const int previousDamage =
             damage;
@@ -286,22 +310,24 @@ namespace sticky_lotus
 
     int GameState::getCommanderDamage(
         const std::size_t attackerIndex,
-        const std::size_t defenderIndex
+        const std::size_t defenderIndex,
+        const int commander
     ) const
     {
         if (
             attackerIndex >= getPlayerCount() ||
-            defenderIndex >= getPlayerCount()
+            defenderIndex >= getPlayerCount() ||
+            (commander != 0 && commander != 1)
         )
         {
             return 0;
         }
 
-        return commanderDamage_[
-            attackerIndex
-        ][
-            defenderIndex
-        ];
+        return commanderDamageSlot(
+            attackerIndex,
+            defenderIndex,
+            commander
+        );
     }
 
     void GameState::resetCommanderDamage()
@@ -309,6 +335,14 @@ namespace sticky_lotus
         for (
             auto& attackerValues :
             commanderDamage_
+        )
+        {
+            attackerValues.fill(0);
+        }
+
+        for (
+            auto& attackerValues :
+            partnerDamage_
         )
         {
             attackerValues.fill(0);
@@ -335,8 +369,17 @@ namespace sticky_lotus
                 continue;
             }
 
+            /*
+             * Jeder Commander zählt einzeln - der Schaden von
+             * Commander und Partner wird nicht zusammengerechnet.
+             */
             if (
                 commanderDamage_[
+                    attackingPlayer
+                ][
+                    playerIndex
+                ] >= 21 ||
+                partnerDamage_[
                     attackingPlayer
                 ][
                     playerIndex
@@ -613,6 +656,9 @@ namespace sticky_lotus
         snapshot.commanderDamage =
             commanderDamage_;
 
+        snapshot.partnerCommanderDamage =
+            partnerDamage_;
+
         return snapshot;
     }
 
@@ -665,6 +711,9 @@ namespace sticky_lotus
 
         commanderDamage_ =
             snapshot.commanderDamage;
+
+        partnerDamage_ =
+            snapshot.partnerCommanderDamage;
 
         return true;
     }
