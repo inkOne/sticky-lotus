@@ -3,6 +3,8 @@
 #include "sticky_lotus/screens/Screen.h"
 #include "sticky_lotus/screens/ScreenContext.h"
 
+#include <array>
+#include <chrono>
 #include <cstddef>
 
 namespace sticky_lotus::screens {
@@ -21,8 +23,29 @@ namespace sticky_lotus::screens {
 
         void draw() override;
 
+        /**
+         * Verwirft die Möglichkeit, den letzten Ping rückgängig zu machen.
+         */
+        void cancelPingUndo() { pingUndoActive_ = false; }
+
+        void onExit() override { cancelPingUndo(); }
+
     private:
         ScreenContext context_;
+
+        /*
+         * Letzter Ping: Wer gepingt hat, wie viel Leben jeder Spieler
+         * dadurch tatsächlich verloren hat und wann. Eine Wischgeste nach
+         * oben im selben Feld macht ihn vier Sekunden lang rückgängig.
+         */
+        bool pingUndoActive_ = false;
+        std::size_t pingSource_ = 0;
+        std::size_t pingPlayerCount_ = 0;
+        std::array<int, maximumPlayerCount> pingLoss_{};
+        std::chrono::steady_clock::time_point pingTime_{};
+
+        void processPing(ui::Point position);
+        bool undoPing(ui::Point position);
 
         void processTap(ui::Point position);
         void processSwipe(
@@ -35,9 +58,9 @@ namespace sticky_lotus::screens {
         ) const;
 
         [[nodiscard]]
-        static int getLifeChange(
+        int getLifeChange(
             ui::Point position
-        );
+        ) const;
         void processLongPress(
             ui::Point position
         );

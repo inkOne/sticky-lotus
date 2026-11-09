@@ -171,8 +171,8 @@ namespace sticky_lotus
             life;
 
         if (
-            settings_.playerMode ==
-            PlayerMode::FourPlayers
+            settings_.playerMode !=
+            PlayerMode::TwoPlayers
         )
         {
             reset();
@@ -431,6 +431,26 @@ namespace sticky_lotus
         }
 
         return players_[playerIndex].poison;
+    }
+
+    bool GameState::isValidDie(const int sides)
+    {
+        return sides == 2 || sides == 4 || sides == 6 ||
+               sides == 8 || sides == 10 || sides == 12 ||
+               sides == 20;
+    }
+
+    int GameState::rollDie(const int sides)
+    {
+        if (!isValidDie(sides))
+        {
+            return 0;
+        }
+
+        return std::uniform_int_distribution<int>(
+            1,
+            sides
+        )(rng);
     }
 
     void GameState::rollStartingPlayer()

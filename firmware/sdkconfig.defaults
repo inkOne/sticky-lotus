@@ -1,5 +1,9 @@
 CONFIG_IDF_TARGET="esp32s3"
 
+# The UI runs on the main task; the profile dialogs and dice overlay need
+# more than the 3584-byte default.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
 # reTerminal Sticky hardware: ESP32-S3R8 with 8 MB octal PSRAM.
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y

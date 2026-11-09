@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
+#include <cstring>
 #include <string>
 
 #include "icons/lotus_menu_icon.h"
@@ -16,6 +18,89 @@ namespace sticky_lotus::ui
     )
         : canvas_(canvas)
     {
+    }
+
+    void AppRenderer::drawDice(
+        const bool selector,
+        const int sides,
+        const int result
+    )
+    {
+        const Rect panel{70.0F, 70.0F, 660.0F, 340.0F};
+
+        canvas_.fillRoundedRect(panel, 18.0F, Ink::White);
+        canvas_.drawRoundedRect(panel, 18.0F, 3.0F, Ink::Black);
+
+        char title[16]{};
+
+        if (selector) {
+            std::strcpy(title, "Choose a die");
+        } else if (sides == 2) {
+            std::strcpy(title, "COIN");
+        } else {
+            std::snprintf(title, sizeof(title), "D%d", sides);
+        }
+
+        canvas_.drawText(
+            title,
+            {90.0F, 88.0F, 620.0F, 40.0F},
+            28,
+            Ink::Black,
+            TextAlignment::Center,
+            0.0F
+        );
+
+        if (selector) {
+            for (int i = 0; i < diceOptionCount; ++i) {
+                char label[8]{};
+
+                if (diceOptionSides(i) == 2) {
+                    std::strcpy(label, "Coin");
+                } else {
+                    std::snprintf(
+                        label,
+                        sizeof(label),
+                        "D%d",
+                        diceOptionSides(i)
+                    );
+                }
+
+                drawSettingsButton(
+                    diceOptionArea(i),
+                    label,
+                    sides == diceOptionSides(i)
+                );
+            }
+
+            canvas_.drawText(
+                "Tap to select",
+                {90.0F, 340.0F, 620.0F, 30.0F},
+                22,
+                Ink::Black,
+                TextAlignment::Center,
+                0.0F
+            );
+        } else {
+            char value[16]{};
+
+            if (sides == 2) {
+                std::strcpy(value, result == 1 ? "HEADS" : "TAILS");
+            } else {
+                std::snprintf(value, sizeof(value), "%d", result);
+            }
+
+            canvas_.drawText(
+                value,
+                {90.0F, 150.0F, 620.0F, 170.0F},
+                90,
+                Ink::Black,
+                TextAlignment::Center,
+                0.0F
+            );
+        }
+
+        canvas_.invalidate(panel);
+        canvas_.flush();
     }
 
     void AppRenderer::drawGame(
@@ -586,7 +671,7 @@ namespace sticky_lotus::ui
         };
 
         drawHint("IO", 70.0F);
-        drawHint("RESET", 207.0F);
+        drawHint("DICE", 207.0F);
         drawHint("ROLL", 320.0F);
     }
 
@@ -916,6 +1001,33 @@ namespace sticky_lotus::ui
             : playerArea.y +
               playerArea.height -
               distanceFromOuterEdge;
+    }
+
+    void AppRenderer::drawPlayerName(
+        const GameState& game,
+        const std::size_t playerIndex,
+        const std::size_t playerCount,
+        const float rotation
+    )
+    {
+        const std::string name =
+            game.profiles.seatName(
+                playerIndex
+            );
+
+        canvas_.drawText(
+            name,
+            playerNameArea(
+                playerIndex,
+                playerCount
+            ),
+            name.size() > 12
+                ? 18
+                : 22,
+            Ink::Black,
+            TextAlignment::Center,
+            rotation
+        );
     }
 
     Ink AppRenderer::playerBackgroundInk(
@@ -1435,6 +1547,13 @@ namespace sticky_lotus::ui
             Ink::Black
         );
 
+        drawPlayerName(
+            game,
+            playerIndex,
+            playerCount,
+            rotation
+        );
+
         if (!eliminated)
         {
             canvas_.drawText(
@@ -1687,6 +1806,13 @@ namespace sticky_lotus::ui
         );
 
         drawSettingsButton(
+            getThreePlayersButtonRectangle(),
+            "3",
+            game.getSettings().playerMode ==
+            PlayerMode::ThreePlayers
+        );
+
+        drawSettingsButton(
             getFourPlayersButtonRectangle(),
             "4",
             game.getSettings().playerMode ==
@@ -1919,6 +2045,13 @@ namespace sticky_lotus::ui
         );
 
         drawSettingsButton(
+            getThreePlayersButtonRectangle(),
+            "3",
+            game.getSettings().playerMode ==
+            PlayerMode::ThreePlayers
+        );
+
+        drawSettingsButton(
             fourPlayersButton,
             "4",
             game.getSettings().playerMode ==
@@ -2071,6 +2204,15 @@ namespace sticky_lotus::ui
         );
 
         /*
+         * Spielerprofile und Punktestand
+         */
+        drawSettingsButton(
+            profilesButtonArea(),
+            "Players & scores",
+            false
+        );
+
+        /*
          * Branding / About rechts
          */
         constexpr float brandingX = 515.0F;
@@ -2083,7 +2225,7 @@ namespace sticky_lotus::ui
             "lotus.cooppunks.social",
             {
                 brandingX,
-                185.0F,
+                245.0F,
                 brandingWidth,
                 30.0F
             },
@@ -2108,7 +2250,7 @@ namespace sticky_lotus::ui
 
         const Rect cooppunksLogoArea = {
             brandingX + 20.0F,
-            235.0F,
+            280.0F,
             logoWidth,
             logoHeight
         };
@@ -2199,7 +2341,17 @@ namespace sticky_lotus::ui
         return {
             70.0F,
             125.0F,
+            80.0F,
+            44.0F
+        };
+    }
+
+    Rect AppRenderer::getThreePlayersButtonRectangle() const
+    {
+        return {
+            162.5F,
             125.0F,
+            80.0F,
             44.0F
         };
     }
@@ -2207,9 +2359,9 @@ namespace sticky_lotus::ui
     Rect AppRenderer::getFourPlayersButtonRectangle() const
     {
         return {
-            210.0F,
+            255.0F,
             125.0F,
-            125.0F,
+            80.0F,
             44.0F
         };
     }
@@ -2732,6 +2884,17 @@ namespace sticky_lotus::ui
          */
         drawGestureHints(
             playerArea,
+            rotation
+        );
+
+        /*
+         * Der Name liegt im selben Streifen wie die Lebenszahl und
+         * wurde vom Löschen oben mit entfernt.
+         */
+        drawPlayerName(
+            game,
+            playerIndex,
+            playerCount,
             rotation
         );
 

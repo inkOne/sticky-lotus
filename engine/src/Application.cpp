@@ -22,6 +22,15 @@ namespace sticky_lotus::app {
     void Application::tick()
     {
         /*
+         * Abgelaufene Würfelanzeige vor einer Eingabe schließen, die
+         * sonst auf den dahinterliegenden Screen durchfallen würde.
+         */
+        const bool diceWasVisible =
+            diceView_ != DiceView::Closed;
+
+        checkTimeouts();
+
+        /*
          * Aktuelle Sound-Einstellung an die Plattform durchreichen.
          *
          * Der tatsächliche Klick entsteht asynchron im Touch-Task,
@@ -41,7 +50,9 @@ namespace sticky_lotus::app {
             input.buttons.leftPressed ||
             input.buttons.centerPressed ||
             input.buttons.rightPressed ||
-            input.cancelPressed;
+            input.cancelPressed ||
+            input.dicePressed ||
+            input.diceSelectorPressed;
 
         if (!hasInput) {
             return;
@@ -50,13 +61,154 @@ namespace sticky_lotus::app {
         lastInputTime_ =
             std::chrono::steady_clock::now();
 
+        if (profileView_.mode != ui::ProfileView::Mode::Closed) {
+            handleProfileInput(input);
+            return;
+        }
+
+        if (input.diceSelectorPressed) {
+            showDiceSelector();
+            return;
+        }
+
+        if (input.dicePressed) {
+            rollDice();
+            return;
+        }
+
+        /*
+         * Solange Auswahl oder Ergebnis sichtbar sind, erreicht keine
+         * Eingabe den dahinterliegenden Screen - der schließende Tap
+         * verändert also nie Leben oder Zähler.
+         */
+        if (diceView_ != DiceView::Closed) {
+            if (
+                diceView_ == DiceView::Selector &&
+                input.gesture.gesture == input::TouchGesture::Tap
+            ) {
+                for (int i = 0; i < ui::AppRenderer::diceOptionCount; ++i) {
+                    if (
+                        ui::AppRenderer::diceOptionArea(i).contains(
+                            input.gesture.endPosition
+                        )
+                    ) {
+                        setDiceSides(
+                            ui::AppRenderer::diceOptionSides(i)
+                        );
+                        closeDice();
+                        return;
+                    }
+                }
+            }
+
+            if (
+                input.cancelPressed ||
+                input.buttons.centerPressed ||
+                diceView_ == DiceView::Result
+            ) {
+                closeDice();
+            }
+
+            return;
+        }
+
+        if (diceWasVisible) {
+            return;
+        }
+
+        const bool tap =
+            input.gesture.gesture == input::TouchGesture::Tap ||
+            input.gesture.gesture == input::TouchGesture::LongPress;
+
+        /*
+         * Settings: "Reset" fragt zuerst nach dem Sieger, und
+         * "Players & scores" öffnet den Punktestand. Beides wird hier
+         * abgefangen, bevor der Settings-Screen den Tap bekommt.
+         */
+        if (tap && navigation_.currentScreen() == ScreenId::Settings) {
+            if (
+                renderer_.getResetButtonRectangle().contains(
+                    input.gesture.endPosition
+                )
+            ) {
+                openProfiles(ui::ProfileView::Mode::Winner);
+                return;
+            }
+
+            if (
+                ui::AppRenderer::profilesButtonArea().contains(
+                    input.gesture.endPosition
+                )
+            ) {
+                openProfiles(ui::ProfileView::Mode::Scores);
+                return;
+            }
+        }
+
+        /*
+         * Game: Ein Tap auf den Namen über der Lebenszahl öffnet die
+         * Spielerauswahl für diesen Sitzplatz.
+         */
+        if (tap && navigation_.currentScreen() == ScreenId::Game) {
+            for (std::size_t i = 0; i < game_.getPlayerCount(); ++i) {
+                const ui::Rect area =
+                    ui::AppRenderer::playerNameArea(
+                        i,
+                        game_.getPlayerCount()
+                    );
+
+                if (
+                    area.contains(input.gesture.startPosition) &&
+                    area.contains(input.gesture.endPosition)
+                ) {
+                    profileView_.seat = static_cast<int>(i);
+                    openProfiles(ui::ProfileView::Mode::Select);
+                    return;
+                }
+            }
+        }
+
+        const std::size_t oldCount = game_.getPlayerCount();
+        const int oldLife = game_.getSettings().startingLife();
+
         screenManager_.handleInput(
             input
         );
+
+        /*
+         * Ein Moduswechsel oder anderer Startwert beginnt ein neues
+         * Spiel - dann Spiel und Profile gemeinsam speichern lassen.
+         */
+        if (
+            oldCount != game_.getPlayerCount() ||
+            oldLife != game_.getSettings().startingLife()
+        ) {
+            game_.profiles.changed();
+        }
     }
 
     void Application::checkTimeouts()
     {
+        if (profileView_.mode != ui::ProfileView::Mode::Closed) {
+            return;
+        }
+
+        if (
+            diceView_ == DiceView::Result &&
+            std::chrono::steady_clock::now() - diceShownAt_ >=
+                std::chrono::seconds(3)
+        ) {
+            closeDice();
+        }
+
+        /*
+         * Hinter Würfelauswahl oder -ergebnis ruht alles andere,
+         * ein regionaler Redraw würde sie überschreiben.
+         */
+        if (diceView_ != DiceView::Closed) {
+            return;
+        }
+
         /*
          * Jeder Zweig unten ist nur relevant, während der jeweils
          * betroffene Screen tatsächlich sichtbar ist - ein
@@ -192,6 +344,12 @@ namespace sticky_lotus::app {
 
     void Application::rollStartingPlayer()
     {
+        if (profileView_.mode != ui::ProfileView::Mode::Closed) {
+            return;
+        }
+
+        diceView_ = DiceView::Closed;
+
         lastInputTime_ =
             std::chrono::steady_clock::now();
 
@@ -210,6 +368,12 @@ namespace sticky_lotus::app {
 
     void Application::resetGame()
     {
+        game_.profiles.changed();
+        profileView_.mode = ui::ProfileView::Mode::Closed;
+        diceView_ = DiceView::Closed;
+
+        screenManager_.cancelPingUndo();
+
         lastInputTime_ =
             std::chrono::steady_clock::now();
 
@@ -222,7 +386,72 @@ namespace sticky_lotus::app {
 
     void Application::draw()
     {
+        if (profileView_.mode != ui::ProfileView::Mode::Closed) {
+            renderer_.drawProfiles(game_, profileView_);
+            return;
+        }
+
         screenManager_.draw();
+
+        if (diceView_ != DiceView::Closed) {
+            renderer_.drawDice(
+                diceView_ == DiceView::Selector,
+                diceSides_,
+                diceResult_
+            );
+        }
+    }
+
+    void Application::setDiceSides(const int sides)
+    {
+        if (GameState::isValidDie(sides)) {
+            diceSides_ = sides;
+        }
+    }
+
+    void Application::closeDice()
+    {
+        diceView_ = DiceView::Closed;
+
+        screenManager_.draw();
+    }
+
+    void Application::showDiceSelector()
+    {
+        if (profileView_.mode != ui::ProfileView::Mode::Closed) {
+            return;
+        }
+
+        screenManager_.cancelPingUndo();
+
+        lastInputTime_ =
+            std::chrono::steady_clock::now();
+
+        diceView_ = DiceView::Selector;
+
+        draw();
+    }
+
+    void Application::rollDice()
+    {
+        if (profileView_.mode != ui::ProfileView::Mode::Closed) {
+            return;
+        }
+
+        screenManager_.cancelPingUndo();
+
+        diceResult_ =
+            GameState::rollDie(
+                diceSides_
+            );
+
+        lastInputTime_ =
+            diceShownAt_ =
+                std::chrono::steady_clock::now();
+
+        diceView_ = DiceView::Result;
+
+        draw();
     }
 
     void Application::setBatteryStatus(
@@ -237,6 +466,10 @@ namespace sticky_lotus::app {
     }
     void Application::showSleepScreen()
     {
+        profileView_.mode = ui::ProfileView::Mode::Closed;
+        diceView_ = DiceView::Closed;
+
+        screenManager_.cancelPingUndo();
         renderer_.drawSleepScreen();
     }
     GameSnapshot Application::createGameSnapshot() const
@@ -248,6 +481,11 @@ namespace sticky_lotus::app {
         const GameSnapshot& snapshot
     )
     {
+        profileView_.mode = ui::ProfileView::Mode::Closed;
+        diceView_ = DiceView::Closed;
+
+        screenManager_.cancelPingUndo();
+
         const bool restored =
             game_.restoreSnapshot(
                 snapshot

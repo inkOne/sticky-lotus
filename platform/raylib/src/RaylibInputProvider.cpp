@@ -115,7 +115,9 @@ InputFrame RaylibInputProvider::poll()
         .pointer = pointer,
         .gesture = updateGesture(pointer),
         .buttons = readHardwareButtons(),
-        .cancelPressed = IsKeyPressed(KEY_ESCAPE)
+        .cancelPressed = IsKeyPressed(KEY_ESCAPE),
+        .dicePressed = IsKeyPressed(KEY_R),
+        .diceSelectorPressed = IsKeyPressed(KEY_D)
     };
 }
 

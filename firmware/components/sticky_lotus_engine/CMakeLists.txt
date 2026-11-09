@@ -2,6 +2,8 @@ idf_component_register(
     SRCS
         "../../../engine/src/AppRenderer.cpp"
         "../../../engine/src/Application.cpp"
+        "../../../engine/src/ProfileActions.cpp"
+        "../../../engine/src/ProfileRenderer.cpp"
         "../../../engine/src/TableLayout.cpp"
         "../../../engine/src/screens/GameScreen.cpp"
         "../../../engine/src/screens/SettingsScreen.cpp"

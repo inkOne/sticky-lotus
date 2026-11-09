@@ -55,11 +55,57 @@ namespace sticky_lotus::app
         /**
          * Setzt das Spiel zurück und wechselt zum Game-Screen.
          *
-         * Für die physische mittlere Taste gedacht (3s halten) -
-         * wirkt bewusst bildschirmunabhängig, genau wie
-         * rollStartingPlayer() und der Power-Button.
+         * Wirkt bildschirmunabhängig, genau wie rollStartingPlayer()
+         * und der Power-Button. Die Settings lösen es über die
+         * Siegerabfrage aus.
          */
         void resetGame();
+
+        /**
+         * Würfelt mit dem gewählten Würfel (oder wirft die Münze) und
+         * zeigt das Ergebnis drei Sekunden lang an.
+         *
+         * Für die mittlere Hardwaretaste gedacht (kurz drücken).
+         */
+        void rollDice();
+
+        /**
+         * Öffnet die Auswahl von Münze, D4, D6, D8, D10, D12 und D20.
+         *
+         * Für die mittlere Hardwaretaste gedacht (halten).
+         */
+        void showDiceSelector();
+
+        [[nodiscard]]
+        int diceSides() const { return diceSides_; }
+
+        void setDiceSides(int sides);
+
+        /*
+         * Spielerprofile (Namen, Siege, Sitzplätze) für die Persistenz.
+         * Die Firmware speichert sie, sobald profilesDirty() gesetzt ist.
+         */
+        [[nodiscard]]
+        const ProfileSnapshot& profileSnapshot() const
+        {
+            return game_.profiles.snapshot();
+        }
+
+        bool restoreProfiles(const ProfileSnapshot& saved)
+        {
+            return game_.profiles.restore(saved);
+        }
+
+        [[nodiscard]]
+        bool profilesDirty() const
+        {
+            return game_.profiles.dirty();
+        }
+
+        void profilesSaved()
+        {
+            game_.profiles.saved();
+        }
 
         void draw();
 
@@ -75,6 +121,21 @@ namespace sticky_lotus::app
             const GameSnapshot& snapshot
         );
     private:
+        ui::ProfileView profileView_;
+        ui::ProfileView::Mode keyboardReturn_ =
+            ui::ProfileView::Mode::Scores;
+
+        void handleProfileInput(const input::InputFrame& input);
+        void openProfiles(ui::ProfileView::Mode mode);
+
+        int diceSides_ = 6;
+        int diceResult_ = 1;
+
+        enum class DiceView { Closed, Selector, Result };
+        DiceView diceView_ = DiceView::Closed;
+        std::chrono::steady_clock::time_point diceShownAt_{};
+        void closeDice();
+
         GameState game_;
         NavigationState navigation_;
         commander::CommanderDamageDraft commanderDraft_;

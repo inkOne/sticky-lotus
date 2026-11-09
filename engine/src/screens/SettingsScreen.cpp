@@ -84,6 +84,22 @@ namespace sticky_lotus::screens
 
         if (
             renderer
+            .getThreePlayersButtonRectangle()
+            .contains(position)
+        )
+        {
+            context_.game.setPlayerMode(
+                PlayerMode::ThreePlayers
+            );
+
+            context_.renderer.drawPlayerModeSettingsButtons(
+                context_.game
+            );
+            return;
+        }
+
+        if (
+            renderer
             .getFourPlayersButtonRectangle()
             .contains(position)
         )

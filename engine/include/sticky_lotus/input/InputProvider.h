@@ -71,6 +71,14 @@ namespace sticky_lotus::input {
         HardwareButtonState buttons{};
 
         bool cancelPressed = false;
+
+        /*
+         * Würfeln bzw. Würfelauswahl öffnen. Auf dem Sticky löst die
+         * Firmware beides direkt über Application aus; im Simulator
+         * kommen sie von den Tasten R und D.
+         */
+        bool dicePressed = false;
+        bool diceSelectorPressed = false;
     };
 
     /**

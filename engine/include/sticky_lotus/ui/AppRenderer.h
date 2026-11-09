@@ -6,6 +6,7 @@
 #include <cstddef>
 #include "sticky_lotus/commander/CommanderDamageDraft.h"
 #include "sticky_lotus/ui/TableLayout.h"
+#include "sticky_lotus/ui/ProfileView.h"
 
 class GameState;
 
@@ -39,6 +40,101 @@ namespace sticky_lotus::ui
          */
         void drawSettings(const GameState& game);
 
+        /**
+         * Würfelauswahl (selector) bzw. Würfel-/Münzergebnis als Dialog
+         * über dem aktuellen Screen.
+         */
+        void drawDice(
+            bool selector,
+            int sides,
+            int result
+        );
+
+        /*
+         * Auswahlfelder: Münze (2) sowie D4, D6, D8, D10, D12, D20,
+         * in zwei Reihen zu je vier Feldern.
+         */
+        static constexpr int diceOptionCount = 7;
+
+        static constexpr int diceOptionSides(const int index)
+        {
+            constexpr int sides[diceOptionCount]{
+                2, 4, 6, 8, 10, 12, 20
+            };
+
+            return sides[index];
+        }
+
+        /*
+         * Spielerprofile: Dialoge (Auswahl, Punktestand, Tastatur,
+         * Siegerabfrage, Undo) und deren Trefferflächen.
+         */
+        void drawProfiles(
+            const GameState& game,
+            const ProfileView& view
+        );
+
+        static Rect profilesButtonArea()
+        {
+            return {515.0F, 185.0F, 240.0F, 44.0F};
+        }
+
+        static Rect profileRow(const int row)
+        {
+            return {60.0F, 85.0F + static_cast<float>(row) * 49.0F, 680.0F, 43.0F};
+        }
+
+        static Rect profileFooter(const int col)
+        {
+            return {40.0F + static_cast<float>(col) * 245.0F, 405.0F, 230.0F, 48.0F};
+        }
+
+        static Rect profileNav(const int col)
+        {
+            return {40.0F + static_cast<float>(col) * 245.0F, 342.0F, 230.0F, 45.0F};
+        }
+
+        static Rect keyboardKey(const int row, const int col)
+        {
+            return {
+                40.0F + static_cast<float>(col) * 72.0F,
+                140.0F + static_cast<float>(row) * 48.0F,
+                68.0F,
+                44.0F
+            };
+        }
+
+        /*
+         * Feld für den Spielernamen: über der Lebenszahl, aus Sicht
+         * des jeweiligen Spielers (gedrehte Felder spiegeln die Lage).
+         */
+        static Rect playerNameArea(
+            const std::size_t seat,
+            const std::size_t count
+        )
+        {
+            const TableLayout layout{};
+            const Rect area = layout.counterArea(seat, count);
+
+            return {
+                area.x,
+                area.y + area.height / 2.0F +
+                    (layout.isUpsideDown(seat, count) ? 48.0F : -90.0F),
+                area.width,
+                42.0F
+            };
+        }
+
+        static Rect diceOptionArea(const int index)
+        {
+            return {
+                90.0F + static_cast<float>(index % 4) * 160.0F,
+                150.0F + static_cast<float>(index / 4) * 84.0F,
+                140.0F,
+                64.0F
+            };
+        }
+
         void drawCommanderDamage(
             const GameState& game,
             const commander::CommanderDamageDraft& draft
@@ -52,6 +148,9 @@ namespace sticky_lotus::ui
 
         [[nodiscard]]
         Rect getTwoPlayersButtonRectangle() const;
+
+        [[nodiscard]]
+        Rect getThreePlayersButtonRectangle() const;
 
         [[nodiscard]]
         Rect getFourPlayersButtonRectangle() const;
@@ -213,6 +312,33 @@ namespace sticky_lotus::ui
             const Rect& area,
             float rotationDegrees,
             Ink ink = Ink::Black
+        );
+
+        void drawPlayerName(
+            const GameState& game,
+            std::size_t playerIndex,
+            std::size_t playerCount,
+            float rotation
+        );
+
+        void drawProfileWinner(
+            const GameState& game,
+            const ProfileView& view
+        );
+
+        void drawProfileUndo(
+            const GameState& game,
+            const ProfileView& view
+        );
+
+        void drawProfileKeyboard(
+            const GameState& game,
+            const ProfileView& view
+        );
+
+        void drawProfileList(
+            const GameState& game,
+            const ProfileView& view
         );
 
         void drawTriangleUp(

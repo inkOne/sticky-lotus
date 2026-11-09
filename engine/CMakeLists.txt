@@ -3,6 +3,8 @@ add_library(
         STATIC
         src/AppRenderer.cpp
         src/Application.cpp
+        src/ProfileActions.cpp
+        src/ProfileRenderer.cpp
         src/TableLayout.cpp
         src/screens/GameScreen.cpp
         src/screens/SettingsScreen.cpp

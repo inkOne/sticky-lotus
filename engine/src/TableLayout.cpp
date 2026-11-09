@@ -7,6 +7,29 @@ Rect TableLayout::playerArea(
     const std::size_t playerCount
 ) const
 {
+    if (playerCount == 3) {
+        /*
+         * Spieler 0 belegt die komplette obere Hälfte,
+         * Spieler 1 und 2 teilen sich die untere Hälfte.
+         */
+        if (playerIndex == 0) {
+            return {
+                0.0F,
+                0.0F,
+                screenWidth,
+                screenHeight / 2.0F
+            };
+        }
+
+        return {
+            static_cast<float>(playerIndex - 1) *
+                screenWidth / 2.0F,
+            screenHeight / 2.0F,
+            screenWidth / 2.0F,
+            screenHeight / 2.0F
+        };
+    }
+
     if (playerCount == 2) {
         constexpr float playerWidth =
             screenWidth / 2.0F;
@@ -47,7 +70,7 @@ bool TableLayout::isUpsideDown(
     const std::size_t playerCount
 ) const
 {
-    if (playerCount == 2) {
+    if (playerCount == 2 || playerCount == 3) {
         return playerIndex == 0;
     }
 

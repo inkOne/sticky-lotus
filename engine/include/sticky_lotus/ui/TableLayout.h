@@ -17,6 +17,14 @@ namespace sticky_lotus::ui {
      *
      * Die oberen Felder 0 und 1 werden um 180 Grad dargestellt.
      *
+     * Drei Spieler:
+     *
+     *   --0--
+     *   1 | 2
+     *
+     * Spieler 0 belegt die ganze obere Hälfte und wird um
+     * 180 Grad dargestellt.
+     *
      * Zwei Spieler:
      *
      *   0 | 1

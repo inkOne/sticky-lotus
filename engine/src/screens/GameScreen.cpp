@@ -35,14 +35,6 @@ namespace
 
         return TouchGesture::None;
     }
-
-    bool isUpperPlayerArea(
-        const sticky_lotus::ui::Point& position
-    )
-    {
-        return position.y <
-            sticky_lotus::ui::AppRenderer::screenHeight / 2.0F;
-    }
 } // namespace
 
 namespace sticky_lotus::screens
@@ -60,6 +52,15 @@ namespace sticky_lotus::screens
         const input::InputFrame& inputFrame
     )
     {
+        if (
+            inputFrame.buttons.centerPressed ||
+            inputFrame.buttons.leftPressed ||
+            inputFrame.buttons.rightPressed
+        )
+        {
+            pingUndoActive_ = false;
+        }
+
         if (inputFrame.buttons.centerPressed)
         {
             context_.navigation.showSettings();
@@ -80,11 +81,9 @@ namespace sticky_lotus::screens
             inputFrame.gesture.gesture;
 
         /*
-         * Nur Swipes in der oberen Displayhälfte drehen.
-         *
-         * Die Position selbst bleibt unverändert.
-         * Dadurch bleibt oben links auch oben links und
-         * unten links auch unten links.
+         * Swipes aus Sicht des Spielers deuten, in dessen Feld sie
+         * beginnen: bei um 180 Grad gedrehten Feldern wird die Richtung
+         * gedreht, die Position selbst bleibt unverändert.
          */
         const bool isSwipe =
             effectiveGesture == TouchGesture::SwipeLeft ||
@@ -94,8 +93,11 @@ namespace sticky_lotus::screens
 
         if (
             isSwipe &&
-            isUpperPlayerArea(
-                inputFrame.gesture.startPosition
+            context_.renderer.isPlayerUpsideDown(
+                getPlayerIndex(
+                    inputFrame.gesture.startPosition
+                ),
+                context_.game.getPlayerCount()
             )
         )
         {
@@ -103,6 +105,23 @@ namespace sticky_lotus::screens
                 rotateGesture180(
                     effectiveGesture
                 );
+        }
+
+        if (
+            effectiveGesture == TouchGesture::SwipeUp &&
+            undoPing(inputFrame.gesture.startPosition)
+        )
+        {
+            return;
+        }
+
+        /*
+         * Jede andere Eingabe verbraucht die Undo-Möglichkeit,
+         * Leerlauf-Frames nicht.
+         */
+        if (effectiveGesture != TouchGesture::None)
+        {
+            pingUndoActive_ = false;
         }
 
         switch (effectiveGesture)
@@ -153,10 +172,195 @@ namespace sticky_lotus::screens
             }
 
         case TouchGesture::SwipeDown:
+            processPing(
+                inputFrame.gesture.startPosition
+            );
+            break;
 
         case TouchGesture::None:
             break;
         }
+    }
+
+    void GameScreen::processPing(
+        const ui::Point position
+    )
+    {
+        /*
+         * Wischen von oben nach unten im eigenen Feld (aus Sicht des
+         * Spielers): jeder andere Spieler verliert 1 Leben. Wischgesten,
+         * die auf dem Menüknopf beginnen, pingen nicht.
+         */
+        if (
+            position.x < 0 ||
+            position.x >= ui::AppRenderer::screenWidth ||
+            position.y < 0 ||
+            position.y >= ui::AppRenderer::screenHeight ||
+            context_.renderer
+                .getMenuButtonRectangle()
+                .contains(position)
+        )
+        {
+            return;
+        }
+
+        const std::size_t sourcePlayer =
+            getPlayerIndex(position);
+
+        const std::size_t playerCount =
+            context_.game.getPlayerCount();
+
+        if (sourcePlayer >= playerCount)
+        {
+            return;
+        }
+
+        std::array<bool, maximumPlayerCount> changed{};
+        bool eliminationChanged = false;
+
+        pingLoss_.fill(0);
+        pingSource_ = sourcePlayer;
+        pingPlayerCount_ = playerCount;
+
+        for (
+            std::size_t player = 0;
+            player < playerCount;
+            ++player
+        )
+        {
+            if (player == sourcePlayer)
+            {
+                continue;
+            }
+
+            const int before =
+                context_.game.getPlayer(player).life;
+
+            const bool wasEliminated =
+                context_.game.isPlayerEliminated(player);
+
+            /*
+             * Normale Lebensregeln und dieselbe Änderungsanzeige
+             * wie beim Antippen verwenden.
+             */
+            context_.game.changeLife(player, -1);
+
+            const int lost =
+                before -
+                context_.game.getPlayer(player).life;
+
+            changed[player] = lost != 0;
+            pingLoss_[player] = lost;
+            pingUndoActive_ |= changed[player];
+
+            eliminationChanged |=
+                wasEliminated !=
+                context_.game.isPlayerEliminated(player);
+        }
+
+        pingTime_ =
+            std::chrono::steady_clock::now();
+
+        if (eliminationChanged)
+        {
+            context_.renderer.drawGameImmediately(
+                context_.game
+            );
+
+            return;
+        }
+
+        for (
+            std::size_t player = 0;
+            player < playerCount;
+            ++player
+        )
+        {
+            if (changed[player])
+            {
+                context_.renderer.drawLifeCounterRegion(
+                    context_.game,
+                    player
+                );
+            }
+        }
+    }
+
+    bool GameScreen::undoPing(
+        const ui::Point position
+    )
+    {
+        if (
+            !pingUndoActive_ ||
+            std::chrono::steady_clock::now() - pingTime_ >=
+                std::chrono::seconds(4) ||
+            pingPlayerCount_ != context_.game.getPlayerCount() ||
+            position.x < 0 ||
+            position.x >= ui::AppRenderer::screenWidth ||
+            position.y < 0 ||
+            position.y >= ui::AppRenderer::screenHeight ||
+            context_.renderer
+                .getMenuButtonRectangle()
+                .contains(position) ||
+            getPlayerIndex(position) != pingSource_
+        )
+        {
+            return false;
+        }
+
+        pingUndoActive_ = false;
+
+        bool eliminationChanged = false;
+
+        for (
+            std::size_t player = 0;
+            player < pingPlayerCount_;
+            ++player
+        )
+        {
+            if (pingLoss_[player] == 0)
+            {
+                continue;
+            }
+
+            const bool wasEliminated =
+                context_.game.isPlayerEliminated(player);
+
+            context_.game.changeLife(
+                player,
+                pingLoss_[player]
+            );
+
+            eliminationChanged |=
+                wasEliminated !=
+                context_.game.isPlayerEliminated(player);
+        }
+
+        if (eliminationChanged)
+        {
+            context_.renderer.drawGameImmediately(
+                context_.game
+            );
+
+            return true;
+        }
+
+        for (
+            std::size_t player = 0;
+            player < pingPlayerCount_;
+            ++player
+        )
+        {
+            if (pingLoss_[player] != 0)
+            {
+                context_.renderer.drawLifeCounterRegion(
+                    context_.game,
+                    player
+                );
+            }
+        }
+
+        return true;
     }
 
     void GameScreen::processTap(
@@ -419,49 +623,57 @@ namespace sticky_lotus::screens
         const ui::Point position
     ) const
     {
-        if (context_.game.getPlayerCount() == 2)
+        /*
+         * Unabhängig von 2/3/4 Spielern direkt aus dem Layout
+         * bestimmen, welches Spielerfeld getroffen wurde.
+         */
+        const std::size_t playerCount =
+            context_.game.getPlayerCount();
+
+        for (
+            std::size_t player = 0;
+            player < playerCount;
+            ++player
+        )
         {
-            return position.x <
-                   ui::AppRenderer::screenWidth / 2.0F
-                       ? 0
-                       : 1;
+            if (
+                context_.renderer
+                    .getPlayerRectangle(
+                        player,
+                        playerCount
+                    )
+                    .contains(position)
+            )
+            {
+                return player;
+            }
         }
 
-        constexpr float cellWidth =
-            ui::AppRenderer::screenWidth / 2.0F;
-
-        constexpr float cellHeight =
-            ui::AppRenderer::screenHeight / 2.0F;
-
-        const int column =
-            position.x < cellWidth ? 0 : 1;
-
-        const int row =
-            position.y < cellHeight ? 0 : 1;
-
-        return static_cast<std::size_t>(
-            row * 2 + column
-        );
+        return playerCount;
     }
 
     int GameScreen::getLifeChange(
         const ui::Point position
-    )
+    ) const
     {
-        constexpr float cellWidth =
-            ui::AppRenderer::screenWidth / 2.0F;
+        const std::size_t player =
+            getPlayerIndex(position);
 
-        const int column =
-            static_cast<int>(
-                position.x / cellWidth
+        const std::size_t playerCount =
+            context_.game.getPlayerCount();
+
+        if (player >= playerCount)
+        {
+            return 0;
+        }
+
+        const ui::Rect area =
+            context_.renderer.getPlayerRectangle(
+                player,
+                playerCount
             );
 
-        const float localX =
-            position.x -
-            static_cast<float>(column) *
-            cellWidth;
-
-        return localX < cellWidth / 2.0F
+        return position.x < area.x + area.width / 2.0F
                    ? -1
                    : 1;
     }

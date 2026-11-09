@@ -47,6 +47,12 @@ namespace sticky_lotus_firmware
         constexpr const char* gameStateKey =
             "game_state";
 
+        constexpr const char* diceSidesKey =
+            "dice_sides";
+
+        constexpr const char* profilesKey =
+            "profiles_v1";
+
         /*
          * Batteriestand nur bei Bedienung auslesen, und auch dann
          * höchstens alle 30 Sekunden - bei entladenem Akku kann der
@@ -373,6 +379,37 @@ namespace sticky_lotus_firmware
             if (result == ESP_OK)
             {
                 result =
+                    nvs_set_i32(
+                        handle,
+                        diceSidesKey,
+                        application.diceSides()
+                    );
+            }
+
+            /*
+             * Profile (Namen, Siege, Sitzplätze) liegen in einem eigenen
+             * Blob. Statischer Puffer, damit die ~800 Byte nicht auf dem
+             * kleinen Main-Task-Stack landen.
+             */
+            static sticky_lotus::ProfileSnapshot profileBuffer;
+
+            if (result == ESP_OK)
+            {
+                profileBuffer =
+                    application.profileSnapshot();
+
+                result =
+                    nvs_set_blob(
+                        handle,
+                        profilesKey,
+                        &profileBuffer,
+                        sizeof(profileBuffer)
+                    );
+            }
+
+            if (result == ESP_OK)
+            {
+                result =
                     nvs_commit(
                         handle
                     );
@@ -383,6 +420,65 @@ namespace sticky_lotus_firmware
             );
 
             return result;
+        }
+
+        /**
+         * Gespeicherte Spielerprofile aus NVS laden.
+         *
+         * Unabhängig vom Spielstand: auch ohne gespeichertes Spiel
+         * bleiben Namen und Siege erhalten.
+         */
+        esp_err_t loadProfiles(
+            sticky_lotus::app::Application& application
+        )
+        {
+            nvs_handle_t handle{};
+
+            esp_err_t result =
+                nvs_open(
+                    gameStateNamespace,
+                    NVS_READONLY,
+                    &handle
+                );
+
+            if (result != ESP_OK)
+            {
+                return result;
+            }
+
+            static sticky_lotus::ProfileSnapshot profileBuffer;
+
+            std::size_t size =
+                sizeof(profileBuffer);
+
+            result =
+                nvs_get_blob(
+                    handle,
+                    profilesKey,
+                    &profileBuffer,
+                    &size
+                );
+
+            nvs_close(
+                handle
+            );
+
+            if (result != ESP_OK)
+            {
+                return result;
+            }
+
+            if (size != sizeof(profileBuffer))
+            {
+                return ESP_ERR_INVALID_SIZE;
+            }
+
+            if (!application.restoreProfiles(profileBuffer))
+            {
+                return ESP_ERR_INVALID_STATE;
+            }
+
+            return ESP_OK;
         }
 
         /**
@@ -418,6 +514,21 @@ namespace sticky_lotus_firmware
                     &snapshot,
                     &size
                 );
+
+            std::int32_t diceSides = 6;
+
+            if (
+                nvs_get_i32(
+                    handle,
+                    diceSidesKey,
+                    &diceSides
+                ) == ESP_OK
+            )
+            {
+                application.setDiceSides(
+                    diceSides
+                );
+            }
 
             nvs_close(
                 handle
@@ -696,7 +807,7 @@ namespace sticky_lotus_firmware
         );
 
         /*
-         * Mittlere Taste (Reset bei 3s Halten) konfigurieren.
+         * Mittlere Taste (Würfel: kurz = würfeln, halten = Auswahl) konfigurieren.
          */
         ESP_RETURN_ON_ERROR(
             configureUpButton(),
@@ -842,6 +953,35 @@ namespace sticky_lotus_firmware
         );
 
         /*
+         * Profile zuerst laden, unabhängig davon, ob ein Spielstand
+         * existiert.
+         */
+        {
+            const esp_err_t profileResult =
+                loadProfiles(
+                    application
+                );
+
+            if (profileResult == ESP_OK)
+            {
+                ESP_LOGI(
+                    logTag,
+                    "Player profiles restored"
+                );
+            }
+            else if (profileResult != ESP_ERR_NVS_NOT_FOUND)
+            {
+                ESP_LOGW(
+                    logTag,
+                    "Could not restore player profiles: %s",
+                    esp_err_to_name(
+                        profileResult
+                    )
+                );
+            }
+        }
+
+        /*
          * Gespeicherten Spielstand laden,
          * bevor der erste Screen gezeichnet wird.
          */
@@ -950,6 +1090,12 @@ namespace sticky_lotus_firmware
         std::int64_t lastActivityUs =
             lastBatteryReadUs;
 
+        /*
+         * Nächster erlaubter Speicherversuch für geänderte Profile.
+         */
+        std::int64_t nextProfileSaveUs =
+            0;
+
         std::int64_t lastHeartbeatUs =
             lastBatteryReadUs;
 
@@ -1042,9 +1188,8 @@ namespace sticky_lotus_firmware
             0;
 
         /*
-         * Verhindert wiederholtes Zurücksetzen, solange die Taste
-         * über die Haltezeit hinaus gedrückt bleibt - anders als
-         * enterDeepSleep() kehrt resetGame() normal zurück.
+         * Öffnet die Würfelauswahl nur einmal pro Halten und
+         * unterdrückt das Würfeln beim anschließenden Loslassen.
          */
         bool upButtonHoldTriggered =
             false;
@@ -1150,14 +1295,14 @@ namespace sticky_lotus_firmware
                 downButtonPressed;
 
             /*
-             * Mittlere Taste: Spiel zurücksetzen bei 3s Halten.
-             *
-             * Bewusst eine deutlich längere Haltezeit als bei
-             * Deep Sleep, da ein Reset destruktiv und nicht
-             * rückgängig zu machen ist.
+             * Mittlere Taste (Würfel): kurz drücken und loslassen
+             * würfelt, etwa 0,8 s halten öffnet die Auswahl von Münze
+             * und Würfeln. Nach einem langen Halten würfelt das
+             * Loslassen nicht zusätzlich. Zurücksetzen geht über die
+             * Settings.
              */
             constexpr std::int64_t upButtonHoldUs =
-                3LL * 1'000'000LL;
+                800'000LL;
 
             const bool upButtonPressed =
                 isUpButtonPressed();
@@ -1184,7 +1329,7 @@ namespace sticky_lotus_firmware
                 upButtonHoldUs
             )
             {
-                application.resetGame();
+                application.showDiceSelector();
 
                 upButtonHoldTriggered =
                     true;
@@ -1192,6 +1337,17 @@ namespace sticky_lotus_firmware
 
             if (!upButtonPressed)
             {
+                if (
+                    previousUpButtonPressed &&
+                    !upButtonHoldTriggered &&
+                    upButtonPressStartUs != 0 &&
+                    esp_timer_get_time() - upButtonPressStartUs >=
+                    50'000LL
+                )
+                {
+                    application.rollDice();
+                }
+
                 upButtonPressStartUs =
                     0;
 
@@ -1207,6 +1363,46 @@ namespace sticky_lotus_firmware
              * lange genug keine Eingabe mehr kam.
              */
             application.checkTimeouts();
+
+            /*
+             * Geänderte Profile (neuer Name, Sieg, Reset) gleich
+             * zusammen mit dem Spiel speichern, damit sie einen
+             * Stromverlust überstehen. Bei einem Fehler nach fünf
+             * Sekunden erneut versuchen.
+             */
+            if (
+                application.profilesDirty() &&
+                esp_timer_get_time() >= nextProfileSaveUs
+            )
+            {
+                const esp_err_t saveResult =
+                    saveGameState(
+                        application
+                    );
+
+                if (saveResult == ESP_OK)
+                {
+                    application.profilesSaved();
+
+                    ESP_LOGI(
+                        logTag,
+                        "Player profiles and game saved"
+                    );
+                }
+                else
+                {
+                    ESP_LOGE(
+                        logTag,
+                        "Saving player profiles failed: %s; retrying",
+                        esp_err_to_name(
+                            saveResult
+                        )
+                    );
+
+                    nextProfileSaveUs =
+                        esp_timer_get_time() + 5'000'000LL;
+                }
+            }
 
             /*
              * Vorgemerkten E-Paper-Refresh durchführen,

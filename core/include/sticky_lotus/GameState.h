@@ -2,6 +2,7 @@
 
 #include "sticky_lotus/EliminationReason.h"
 #include "sticky_lotus/GameSettings.h"
+#include "sticky_lotus/PlayerProfiles.h"
 
 #include <array>
 #include <chrono>
@@ -72,6 +73,12 @@ public:
         sticky_lotus::maximumPlayerCount;
 
     GameState();
+
+    /*
+     * Gespeicherte Spielerprofile (Namen, Siege) und ihre Sitzplätze.
+     * Teil der Persistenz, aber nicht von GameSnapshot.
+     */
+    PlayerProfiles profiles;
 
     [[nodiscard]]
     const Player& getPlayer(
@@ -148,6 +155,17 @@ public:
      * UI-Rückmeldung, kein dauerhafter Spielzustand.
      */
     void rollStartingPlayer();
+
+    /*
+     * Würfelt mit dem prozessweiten Zufallsgenerator (kein lokaler
+     * Seed auf dem kleinen Main-Task-Stack). Erlaubt sind 2 (Münze),
+     * 4, 6, 8, 10, 12 und 20; sonst 0.
+     */
+    [[nodiscard]]
+    static bool isValidDie(int sides);
+
+    [[nodiscard]]
+    static int rollDie(int sides);
 
     [[nodiscard]]
     bool hasStartingPlayerHighlight() const;
