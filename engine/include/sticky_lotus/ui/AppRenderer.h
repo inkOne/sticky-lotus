@@ -243,6 +243,15 @@ namespace sticky_lotus::ui
         );
 
         /**
+         * Hintergrundfarbe eines Spielerfeldes auf dem Game-Screen.
+         */
+        [[nodiscard]]
+        Ink playerBackgroundInk(
+            const GameState& game,
+            std::size_t playerIndex
+        ) const;
+
+        /**
          * Zeichnet die Anzeige der zuletzt veränderten Lebenspunkte
          * eines Spielers (z.B. "-5") in dessen oberer linker Ecke
          * (Minus) oder oberer rechter Ecke (Plus).
@@ -331,6 +340,26 @@ namespace sticky_lotus::ui
             bool upsideDown,
             float distanceFromOuterEdge
         ) const;
+
+        /**
+         * Beschriftet die drei Gehäusetasten (Roll, Reset, Power/IO)
+         * oben links, um 180 Grad gedreht. Auf Game- und Settings-
+         * Screen; "large" (Settings) verdoppelt die Schriftgröße.
+         */
+        void drawButtonHints(
+            bool large
+        );
+
+        /**
+         * Zeichnet die Tasten-Hinweise neu, falls dirtyArea sie
+         * überdeckt hat (z.B. beim Redraw eines unteren Spielerfeldes).
+         */
+        void redrawButtonHintsIfCovered(
+            const Rect& dirtyArea
+        );
+
+        [[nodiscard]]
+        Rect getButtonHintsRectangle() const;
 
         void drawMenuButton();
 

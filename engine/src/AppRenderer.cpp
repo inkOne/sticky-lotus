@@ -32,6 +32,9 @@ namespace sticky_lotus::ui
 
         drawMenuButton();
         drawBatteryPercent();
+        drawButtonHints(
+            false
+        );
 
         /*
          * Der komplette Bildschirm wurde neu gezeichnet.
@@ -100,6 +103,14 @@ namespace sticky_lotus::ui
          * Dasselbe gilt für die Batterieanzeige unten rechts.
          */
         drawBatteryPercent();
+
+        /*
+         * Und für die Tasten-Hinweise am unteren Rand, falls das
+         * neu gezeichnete Feld sie überdeckt.
+         */
+        redrawButtonHintsIfCovered(
+            playerArea
+        );
 
         canvas_.invalidate(
             playerArea
@@ -514,6 +525,98 @@ namespace sticky_lotus::ui
         }
     }
 
+    Rect AppRenderer::getButtonHintsRectangle() const
+    {
+        return {
+            38.0F,
+            2.0F,
+            314.0F,
+            22.0F
+        };
+    }
+
+    void AppRenderer::drawButtonHints(
+        const bool large
+    )
+    {
+        /*
+         * Beschriftung der drei Gehäusetasten oben links, um 180 Grad
+         * gedreht - lesbar aus Sicht der Seite, an der die Tasten
+         * sitzen. Von links nach rechts im Display-Koordinatensystem:
+         * IO (Power), Reset, Roll. Die x-Positionen liegen mittig
+         * über der jeweiligen Taste.
+         *
+         * Große Variante (Settings): doppelte Schriftgröße. Das
+         * Rechteck beginnt knapp über dem Bildschirmrand, damit die
+         * Buchstaben nach der 180-Grad-Spiegelung im schmalen Rand
+         * über dem Settings-Panel liegen und dessen Linie nicht
+         * berühren.
+         */
+        const int fontSize =
+            large ? 28 : 14;
+
+        const float hintWidth =
+            large ? 120.0F : 60.0F;
+
+        const float hintHeight =
+            large ? 28.0F : 18.0F;
+
+        const float hintY =
+            large ? -4.0F : 4.0F;
+
+        const auto drawHint =
+            [&](
+                const char* label,
+                const float centerX
+            )
+        {
+            canvas_.drawText(
+                label,
+                {
+                    centerX - hintWidth / 2.0F,
+                    hintY,
+                    hintWidth,
+                    hintHeight
+                },
+                fontSize,
+                Ink::DarkGray,
+                TextAlignment::Center,
+                180.0F
+            );
+        };
+
+        drawHint("IO", 70.0F);
+        drawHint("RESET", 207.0F);
+        drawHint("ROLL", 320.0F);
+    }
+
+    void AppRenderer::redrawButtonHintsIfCovered(
+        const Rect& dirtyArea
+    )
+    {
+        const Rect hints =
+            getButtonHintsRectangle();
+
+        const bool overlaps =
+            dirtyArea.x < hints.x + hints.width &&
+            dirtyArea.x + dirtyArea.width > hints.x &&
+            dirtyArea.y < hints.y + hints.height &&
+            dirtyArea.y + dirtyArea.height > hints.y;
+
+        if (!overlaps)
+        {
+            return;
+        }
+
+        drawButtonHints(
+            false
+        );
+
+        canvas_.invalidate(
+            hints
+        );
+    }
+
     Rect AppRenderer::getBatteryRectangle() const
     {
         return {
@@ -815,6 +918,27 @@ namespace sticky_lotus::ui
               distanceFromOuterEdge;
     }
 
+    Ink AppRenderer::playerBackgroundInk(
+        const GameState& game,
+        const std::size_t playerIndex
+    ) const
+    {
+        /*
+         * Ausgeschiedene Spieler und der per "Roll Start"
+         * ausgewürfelte Startspieler werden grau hinterlegt.
+         */
+        const bool highlighted =
+            game.hasStartingPlayerHighlight() &&
+            game.getStartingPlayerHighlight() ==
+            playerIndex;
+
+        return
+            game.isPlayerEliminated(playerIndex) ||
+            highlighted
+                ? Ink::LightGray
+                : Ink::White;
+    }
+
     Rect AppRenderer::getCornerBadgeRectangle(
         const Rect& playerArea,
         const bool leftSide,
@@ -926,14 +1050,25 @@ namespace sticky_lotus::ui
          * Vorzeichen - sonst bliebe bei einem Vorzeichenwechsel
          * oder nach Ablauf des Timeouts ein Bildrest stehen.
          */
+        /*
+         * Hintergrund des Feldes statt festem Weiß, damit die
+         * Ecken bei der grauen Startspieler-Hervorhebung nicht als
+         * weiße Flecken stehen bleiben.
+         */
+        const Ink background =
+            playerBackgroundInk(
+                game,
+                playerIndex
+            );
+
         canvas_.fillRect(
             minusBadgeArea,
-            Ink::White
+            background
         );
 
         canvas_.fillRect(
             plusBadgeArea,
-            Ink::White
+            background
         );
 
         if (!game.hasLifeDeltaHighlight(playerIndex))
@@ -1286,21 +1421,12 @@ namespace sticky_lotus::ui
             eliminationReason !=
             EliminationReason::None;
 
-        /*
-         * Kurzzeitige Hervorhebung des per "Roll Start"
-         * ausgewürfelten Startspielers.
-         */
-        const bool startingPlayerHighlighted =
-            !eliminated &&
-            game.hasStartingPlayerHighlight() &&
-            game.getStartingPlayerHighlight() ==
-            playerIndex;
-
         canvas_.fillRect(
             playerArea,
-            eliminated || startingPlayerHighlighted
-                ? Ink::LightGray
-                : Ink::White
+            playerBackgroundInk(
+                game,
+                playerIndex
+            )
         );
 
         canvas_.drawRect(
@@ -2024,7 +2150,7 @@ namespace sticky_lotus::ui
          * Version
          */
         canvas_.drawText(
-            "v1.1",
+            "v1.1.5",
             {
                 brandingX,
                 cooppunksLogoArea.y +
@@ -2040,7 +2166,12 @@ namespace sticky_lotus::ui
             0.0F
         );
 
-
+        /*
+         * Tasten-Beschriftung, in den Settings doppelt so groß.
+         */
+        drawButtonHints(
+            true
+        );
 
         canvas_.invalidate({
             0.0F,
@@ -2569,9 +2700,15 @@ namespace sticky_lotus::ui
         /*
          * Alte Zahl nur im inneren Bereich entfernen.
          */
+        const Ink background =
+            playerBackgroundInk(
+                game,
+                playerIndex
+            );
+
         canvas_.fillRect(
             lifeRedrawArea,
-            Ink::White
+            background
         );
 
         /*
@@ -2606,16 +2743,23 @@ namespace sticky_lotus::ui
         );
 
         /*
-         * Muss das komplette Spielerfeld abdecken, nicht nur
+         * Die Änderungsanzeigen in den Ecken reichen bis an den
+         * mittigen Menübutton heran und löschen ihn teilweise.
+         * Overlays (Menübutton, Batterie, Tasten-Hinweise) deshalb
+         * wie in drawPlayerRegion() zuletzt neu zeichnen.
+         *
+         * Invalidiert dabei das komplette Spielerfeld, nicht nur
          * lifeRedrawArea - sonst wird der Refresh für die
          * Gesten-Hinweise auf echter Hardware nicht ausgelöst,
          * auch wenn der Framebuffer bereits korrekt ist.
          */
-        canvas_.invalidate(
+        redrawButtonHintsIfCovered(
             playerArea
         );
 
-        canvas_.flush();
+        redrawStatusOverlay(
+            playerArea
+        );
     }
 
     void AppRenderer::drawCommanderDamageRegion(

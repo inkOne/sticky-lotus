@@ -18,6 +18,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 
 #include "freertos/FreeRTOS.h"
@@ -27,6 +28,7 @@
 #include "nvs_flash.h"
 
 #include <cstdint>
+#include <cstdio>
 
 
 namespace sticky_lotus_firmware
@@ -46,10 +48,108 @@ namespace sticky_lotus_firmware
             "game_state";
 
         /*
-         * Batteriestand alle fünf Minuten aktualisieren.
+         * Batteriestand nur bei Bedienung auslesen, und auch dann
+         * höchstens alle 30 Sekunden - bei entladenem Akku kann der
+         * I2C-Zugriff auf den Fuel Gauge lange blockieren und würde
+         * sonst jeden Tap verzögern.
          */
-        constexpr std::int64_t batteryUpdateIntervalUs =
-            5LL * 60LL * 1'000'000LL;
+        constexpr std::int64_t batteryReadMinIntervalUs =
+            30LL * 1'000'000LL;
+
+        /*
+         * Nach dieser Zeit ohne Bedienung geht das Gerät in Deep Sleep.
+         */
+        constexpr std::int64_t idleSleepTimeoutUs =
+            10LL * 60LL * 1'000'000LL;
+
+        /*
+         * Temporärer Diagnose-Build: zeigt Boot-Zähler, Reset-Grund
+         * und Akkuspannung auf dem Display und gibt beim Start drei
+         * Klicks sowie danach alle 5 s einen Klick als Herzschlag aus.
+         * Dient dazu, Probleme im Akkubetrieb (ohne USB-Monitor)
+         * sichtbar zu machen. Für Releases auf false setzen.
+         */
+        constexpr bool diagnosticBuild =
+            false;
+
+        constexpr std::int64_t heartbeatIntervalUs =
+            5LL * 1'000'000LL;
+
+        const char* resetReasonName(
+            const esp_reset_reason_t reason
+        )
+        {
+            switch (reason)
+            {
+            case ESP_RST_POWERON:
+                return "POWERON";
+            case ESP_RST_EXT:
+                return "EXT";
+            case ESP_RST_SW:
+                return "SW";
+            case ESP_RST_PANIC:
+                return "PANIC";
+            case ESP_RST_INT_WDT:
+                return "INT_WDT";
+            case ESP_RST_TASK_WDT:
+                return "TASK_WDT";
+            case ESP_RST_WDT:
+                return "WDT";
+            case ESP_RST_DEEPSLEEP:
+                return "DEEPSLEEP";
+            case ESP_RST_BROWNOUT:
+                return "BROWNOUT";
+            case ESP_RST_USB:
+                return "USB";
+            case ESP_RST_PWR_GLITCH:
+                return "PWR_GLITCH";
+            default:
+                return "OTHER";
+            }
+        }
+
+        std::uint32_t incrementBootCount()
+        {
+            nvs_handle_t handle{};
+
+            if (
+                nvs_open(
+                    "sticky_lotus",
+                    NVS_READWRITE,
+                    &handle
+                ) != ESP_OK
+            )
+            {
+                return 0;
+            }
+
+            std::uint32_t count =
+                0;
+
+            nvs_get_u32(
+                handle,
+                "boot_count",
+                &count
+            );
+
+            ++count;
+
+            nvs_set_u32(
+                handle,
+                "boot_count",
+                count
+            );
+
+            nvs_commit(
+                handle
+            );
+
+            nvs_close(
+                handle
+            );
+
+            return count;
+        }
 
         /*
          * Vorwärtsdeklaration, weil enterDeepSleep()
@@ -358,7 +458,7 @@ namespace sticky_lotus_firmware
         {
             ESP_LOGI(
                 logTag,
-                "Power button pressed; preparing deep sleep"
+                "Preparing deep sleep"
             );
 
             /*
@@ -515,6 +615,32 @@ namespace sticky_lotus_firmware
 
     esp_err_t run()
     {
+        /*
+         * Strom-Halteschaltung (Power Latch) aktivieren - als Erstes.
+         *
+         * Im Akkubetrieb bleibt die Systemspannung nur erhalten, solange
+         * dieser Latch gesetzt ist. Ohne ihn läuft das Gerät lediglich
+         * am USB-Kabel oder solange die Power-Taste gehalten wird und
+         * geht beim Abziehen bzw. Loslassen sofort aus. Der Latch behält
+         * seinen Zustand nur, solange der Akku nicht komplett leer war -
+         * die Firmware muss ihn daher bei jedem Start selbst setzen.
+         *
+         * Nicht kritisch für den USB-Betrieb - Fehler nur loggen.
+         */
+        {
+            const esp_err_t holdResult =
+                sticky_board::EnablePowerHold();
+
+            if (holdResult != ESP_OK)
+            {
+                ESP_LOGW(
+                    logTag,
+                    "Could not enable power hold: %s",
+                    esp_err_to_name(holdResult)
+                );
+            }
+        }
+
         ESP_LOGI(
             logTag,
             "Initializing Sticky hardware"
@@ -639,6 +765,23 @@ namespace sticky_lotus_firmware
             }
         }
 
+        const std::uint32_t bootCount =
+            diagnosticBuild
+                ? incrementBootCount()
+                : 0;
+
+        if constexpr (diagnosticBuild)
+        {
+            for (int i = 0; i < 3; ++i)
+            {
+                buzzer_service::Click();
+
+                vTaskDelay(
+                    pdMS_TO_TICKS(200)
+                );
+            }
+        }
+
         battery_service::BatteryState battery{};
 
         const esp_err_t initialBatteryResult =
@@ -759,6 +902,38 @@ namespace sticky_lotus_firmware
          */
         application.draw();
 
+        if constexpr (diagnosticBuild)
+        {
+            char line[96];
+
+            std::snprintf(
+                line,
+                sizeof(line),
+                "boot #%lu  rst=%s  bat=%d mV",
+                static_cast<unsigned long>(bootCount),
+                resetReasonName(
+                    esp_reset_reason()
+                ),
+                initialBatteryResult == ESP_OK
+                    ? battery.voltageMv
+                    : -1
+            );
+
+            canvas.drawText(
+                line,
+                sticky_lotus::ui::Rect{
+                    8.0F,
+                    452.0F,
+                    480.0F,
+                    20.0F
+                },
+                14,
+                sticky_lotus::ui::Ink::Black,
+                sticky_lotus::ui::TextAlignment::Left,
+                0.0F
+            );
+        }
+
         /*
          * Beim Start sofort anzeigen.
          */
@@ -769,8 +944,75 @@ namespace sticky_lotus_firmware
             "Initial Sticky Lotus screen rendered"
         );
 
-        std::int64_t lastBatteryUpdate =
+        std::int64_t lastBatteryReadUs =
             esp_timer_get_time();
+
+        std::int64_t lastActivityUs =
+            lastBatteryReadUs;
+
+        std::int64_t lastHeartbeatUs =
+            lastBatteryReadUs;
+
+        /*
+         * Wird bei jeder Bedienung (Touch oder Taste) aufgerufen,
+         * bevor deren Redraw erfolgt: setzt den Leerlauf-Timer
+         * zurück und holt - gedrosselt - einen frischen Batteriestand,
+         * damit er im folgenden Redraw angezeigt wird. Es gibt keinen
+         * eigenständigen Batterie-Refresh im Leerlauf mehr.
+         */
+        const auto onOperation =
+            [&]()
+        {
+            const std::int64_t now =
+                esp_timer_get_time();
+
+            lastActivityUs =
+                now;
+
+            if (
+                now - lastBatteryReadUs <
+                batteryReadMinIntervalUs
+            )
+            {
+                return;
+            }
+
+            lastBatteryReadUs =
+                now;
+
+            const esp_err_t batteryResult =
+                battery_service::Read(
+                    &battery
+                );
+
+            if (batteryResult == ESP_OK)
+            {
+                application.setBatteryStatus(
+                    battery.percent,
+                    battery.charging
+                );
+
+                ESP_LOGI(
+                    logTag,
+                    "Battery read: %d%%, %d mV, charging=%s",
+                    battery.percent,
+                    battery.voltageMv,
+                    battery.charging
+                        ? "true"
+                        : "false"
+                );
+            }
+            else
+            {
+                ESP_LOGW(
+                    logTag,
+                    "Battery read failed: %s",
+                    esp_err_to_name(
+                        batteryResult
+                    )
+                );
+            }
+        };
 
         /*
          * Aktuellen Zustand übernehmen, damit eine beim Boot
@@ -820,6 +1062,11 @@ namespace sticky_lotus_firmware
             std::size_t processedInputs =
                 0;
 
+            if (inputProvider.hasPendingInput())
+            {
+                onOperation();
+            }
+
             while (
                 inputProvider.hasPendingInput() &&
                 processedInputs < maximumInputsPerCycle
@@ -855,6 +1102,8 @@ namespace sticky_lotus_firmware
             {
                 powerButtonPressStartUs =
                     esp_timer_get_time();
+
+                onOperation();
             }
 
             if (
@@ -892,6 +1141,8 @@ namespace sticky_lotus_firmware
                 !previousDownButtonPressed
             )
             {
+                onOperation();
+
                 application.rollStartingPlayer();
             }
 
@@ -921,6 +1172,8 @@ namespace sticky_lotus_firmware
 
                 upButtonHoldTriggered =
                     false;
+
+                onOperation();
             }
 
             if (
@@ -949,60 +1202,6 @@ namespace sticky_lotus_firmware
             previousUpButtonPressed =
                 upButtonPressed;
 
-            const std::int64_t currentTime =
-                esp_timer_get_time();
-
-            /*
-             * Batteriestand alle fünf Minuten aktualisieren.
-             */
-            if (
-                currentTime - lastBatteryUpdate >=
-                batteryUpdateIntervalUs
-            )
-            {
-                const esp_err_t batteryResult =
-                    battery_service::Read(
-                        &battery
-                    );
-
-                if (batteryResult == ESP_OK)
-                {
-                    application.setBatteryStatus(
-                        battery.percent,
-                        battery.charging
-                    );
-
-                    /*
-                     * Batteriestatus in den aktuellen Framebuffer
-                     * übernehmen.
-                     */
-                    application.draw();
-
-                    ESP_LOGI(
-                        logTag,
-                        "Battery updated: %d%%, %d mV, charging=%s",
-                        battery.percent,
-                        battery.voltageMv,
-                        battery.charging
-                            ? "true"
-                            : "false"
-                    );
-                }
-                else
-                {
-                    ESP_LOGW(
-                        logTag,
-                        "Battery update failed: %s",
-                        esp_err_to_name(
-                            batteryResult
-                        )
-                    );
-                }
-
-                lastBatteryUpdate =
-                    currentTime;
-            }
-
             /*
              * Hebt z.B. die "Roll Start"-Hervorhebung auf, sobald
              * lange genug keine Eingabe mehr kam.
@@ -1014,6 +1213,50 @@ namespace sticky_lotus_firmware
              * sobald die konfigurierte Ruhezeit abgelaufen ist.
              */
             canvas.serviceRefresh();
+
+            if constexpr (diagnosticBuild)
+            {
+                const std::int64_t heartbeatNow =
+                    esp_timer_get_time();
+
+                if (
+                    heartbeatNow - lastHeartbeatUs >=
+                    heartbeatIntervalUs
+                )
+                {
+                    lastHeartbeatUs =
+                        heartbeatNow;
+
+                    buzzer_service::Click();
+                }
+            }
+
+            /*
+             * Lange keine Bedienung: Spielstand sichern und in
+             * Deep Sleep gehen. Kehrt enterDeepSleep() zurück
+             * (Wakeup-Konfiguration fehlgeschlagen), Timer neu
+             * starten statt jeden Durchlauf erneut zu versuchen.
+             */
+            if (
+                esp_timer_get_time() - lastActivityUs >=
+                idleSleepTimeoutUs
+            )
+            {
+                ESP_LOGI(
+                    logTag,
+                    "No input for %lld s; entering deep sleep",
+                    idleSleepTimeoutUs / 1'000'000LL
+                );
+
+                enterDeepSleep(
+                    panel,
+                    application,
+                    canvas
+                );
+
+                lastActivityUs =
+                    esp_timer_get_time();
+            }
 
             vTaskDelay(
                 pdMS_TO_TICKS(10)
