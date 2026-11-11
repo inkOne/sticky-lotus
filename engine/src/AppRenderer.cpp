@@ -2298,7 +2298,7 @@ namespace sticky_lotus::ui
          * Version
          */
         canvas_.drawText(
-            "v1.1.5",
+            "v1.1.6",
             {
                 brandingX,
                 cooppunksLogoArea.y +
