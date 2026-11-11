@@ -28,11 +28,12 @@ The project focuses on the things you actually need during a game:
 - Dice and coin on the middle hardware button (D4, D6, D8, D10, D12, D20)
 - Ping: swipe down to make everyone else lose 1 life
 - Player names and win scores
-- Commander Damage
+- Commander Damage, including Partner commanders
 - Poison Counters
+- Life-change indicator (net change of the last 15 seconds)
 - Long-press ±10 life changes
 - Configurable starting life
-- Battery status
+- Battery status (including a graceful empty-battery state)
 - Deep sleep support - Persistent game state
 - E-Ink optimized partial refreshes
 
@@ -79,6 +80,12 @@ Tap the `+` or `−` area to change life by one.
 
 Hold the area to change life by ten.
 
+### Life-change indicator
+
+After a change, the player field briefly shows the net change of the last
+15 seconds (for example `-5` after several quick taps), so you can still see
+what just happened. The same applies to poison counters and to commander damage.
+
 ### Ping
 
 **Swipe down** inside your own player area, from the direction you read it:
@@ -111,10 +118,22 @@ sleep and power loss.
 Commander damage can be edited independently for each attacking player
 and is applied when leaving the Commander Damage screen.
 
+**Partner commanders:** every opponent's field shows an `A` / `B` marker.
+Tap the number or the marker to switch between commander **A** and partner
+**B** of that opponent. Each of them counts separately towards 21. A long
+press on the number or marker does nothing on purpose, so switching never
+triggers a ±10 change by accident.
+
 ### Poison Counters
 
 Poison counters are available directly through a **swipe up** gesture from
 the corresponding player area and **swipe down** to close. 
+
+### Button labels
+
+The three hardware buttons (Roll, Reset, Power) are labeled in the top-left
+corner of the Game and Settings screens, rotated by 180° so they can be read
+from the opposite side of the table.
 
 ### Touch optimized
 
@@ -170,7 +189,7 @@ After making code changes, you normally only need to rebuild and restart:
 ```bash
 cmake --build build
 ./build/simulator/sticky-lotus-simulator
-```[manifest.json](../reterminal-sticky-playground-registry/integrations/sticky-lotus/firmware/1.0.1/manifest.json)
+```
 
 nix develop is therefore just a convenient way to provide a reproducible development environment; it is not required to run the simulator if the necessary dependencies are installed locally.
 ```bash
@@ -255,4 +274,15 @@ Being able to study a working implementation of the hardware integration made it
 Thank you for making this work publicly available and giving others a foundation to learn from and build upon.
 
 Sticky Lotus uses these insights as a starting point while implementing its own application architecture, user interface, game logic, and Magic: The Gathering–focused experience.
+
+Sticky Lotus has also taken inspiration from [Exonami-lotus](https://github.com/Ex0nami/Exonami-lotus), a fork of this project by Ex0nami that grew into its own custom edition. Several ideas from that fork came back into Sticky Lotus, adapted to this codebase:
+
+- Saved player names with lifetime win scores, the on-screen keyboard and the "who won?" prompt when resetting
+- A three-player layout with one wide seat across the top
+- Swipe-down ping, with a short window to undo it
+- Dice and coin on the middle hardware button
+- The idea of tracking commander damage for partner commanders (implemented differently here: tap the number or the A/B letter to switch between commanders)
+
+Thank you for the ideas and for taking the project further.
+
 ---
